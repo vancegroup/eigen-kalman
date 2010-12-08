@@ -16,7 +16,7 @@
 // - none
 
 // Library/third-party includes
-// - none
+#include <eigenkf/KalmanFilter.h>
 
 // Standard includes
 // - none
