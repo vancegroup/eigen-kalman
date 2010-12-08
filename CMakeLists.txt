@@ -60,3 +60,4 @@ if(WIN32)
 	add_definitions(-DNOMINMAX)
 endif()
 
+add_executable(kftest kftest.cpp)
