@@ -34,30 +34,51 @@ double noise() {
 }
 
 int main(int argc, char * argv[]) {
-	std::srand(std::time(NULL));
+	//std::srand(std::time(NULL));
+
+	/// We want a simple 2d state
 	typedef SimpleState<2> state_t;
+
+	/// Our process model is the simplest possible: doesn't change the mean
 	typedef ConstantProcess<2, state_t> process_t;
+
+	/// Create a kalman filter instance with our chosen state and process types
 	KalmanFilter<state_t, process_t> kf;
+
+	/// Set our process model's variance
 	kf.processModel.sigma = state_t::VecState::Constant(0.5);
+
 	double dt = 0.5;
-	std::cout << "actual,measurement,filtered" << std::endl;
+	double sumSquaredError = 0;
+	
+	const double measurementVariance = NOISE_AMPLITUDE / 2.0;
+
+	/// CSV header row
+	std::cout << "actual,measurement,filtered,squared error" << std::endl;
 	for (double t = 0; t < 50.0; t+= dt) {
+		/// Predict step: Update Kalman filter by predicting ahead by dt
 		kf.predict(dt);
 
+		/// "take a measurement" - in this case, noisify the actual measurement
 		Eigen::Vector2d pos(Eigen::Vector2d::Constant(t));
 		AbsoluteMeasurement<state_t> meas;
 		meas.measurement = (pos + Eigen::Vector2d(noise(), noise())).eval();
-		meas.covariance = Eigen::Vector2d::Constant(0.25).asDiagonal();
+		meas.covariance = Eigen::Vector2d::Constant(measurementVariance).asDiagonal();
+
+		/// Correct step: incorporate information from measurement into KF's state
 		kf.correct(meas);
-		/*
-		std::cout << std::setw(COL) << (kf.state.x - pos).norm();
-		std::cout << std::setw(COL) << kf.state.x[0] << "," << std::setw(COL) << kf.state.x[1];
-		std::cout << std::setw(COL) << "Actual: ";
-		std::cout << std::setw(COL) << pos[0] << "," << std::setw(COL) << pos[1] << std::endl;;
-		*/
-		std::cout << pos[0] << "," << meas.measurement[0] << "," << kf.state.x[0] << std::endl;
-		
+
+		/// Output info for csv
+		double squaredError = (pos[0] - kf.state.x[0]) * (pos[0] - kf.state.x[0]);
+		sumSquaredError += squaredError;
+		std::cout << pos[0] << ",";
+		std::cout << meas.measurement[0] << ",";
+		std::cout << kf.state.x[0] << ",";
+		std::cout << squaredError;
+		std::cout << std::endl;
+
 	}
+	std::cerr << "Sum squared error: " << sumSquaredError << std::endl;
 	return 0;
 
 }
