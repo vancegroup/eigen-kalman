@@ -16,8 +16,22 @@
 #ifndef INCLUDED_KalmanFilter_h_GUID_75AD5E97_70AC_4563_A322_C2A627FD07EB
 #define INCLUDED_KalmanFilter_h_GUID_75AD5E97_70AC_4563_A322_C2A627FD07EB
 
-#include <Eigen/Eigen>
-#include <Eigen/Cholesky>
+#include <Eigen/Core>
+#include <Eigen/LU>
+
+#ifdef EIGEN_VERSION_AT_LEAST
+#	if EIGEN_VERSION_AT_LEAST(2, 9, 0)
+		// Eigen 3.0 series
+#		define eikfLUType FullPivLU
+#		define eikfLUFunc fullPivLu
+#	endif
+#endif
+
+#ifndef eikfLUType
+	// Eigen 2.0.x
+#	define eikfLUType LU
+#	define eikfLUFunc lu
+#endif
 
 #include <stdexcept>
 namespace eigenkf {
@@ -160,7 +174,7 @@ namespace eigenkf {
 			 processModel.updateFromMeasurement(state, state.covariance * H.transpose() * stateInnovPart);
 
 			 */
-			Eigen::LU<MatMeasMeas> luOfS = S.lu();
+			Eigen::eikfLUType<MatMeasMeas> luOfS = S.eikfLUFunc();
 			MatStateState K = state.covariance * H.transpose() * luOfS.inverse();
 			processModel.updateFromMeasurement(state, K * innovation);
 			state.covariance = (MatStateState::Identity() - K*H)*state.covariance;
