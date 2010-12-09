@@ -1,5 +1,8 @@
 /** @file KalmanFilter.h
-	@brief
+	@brief KalmanFilter classes using the Eigen math template library,
+	inspired by equivalent classes in TAG (using TooN for math)
+	
+	
 
 	@date 2010
 
