@@ -31,6 +31,7 @@ using namespace eigenkf;
 #define NOISE_AMPLITUDE 3.0
 
 const double dt = 0.5;
+const double INTERVALS = 20;
 
 
 double noise() {
@@ -39,8 +40,6 @@ double noise() {
 
 typedef std::pair<Eigen::Vector2d, Eigen::Vector2d> StatePair;
 std::vector<StatePair> generateData() {
-	/// Reset the random seed
-	std::srand(200);
 	std::vector<StatePair> ret;
 	for (double t = 0; t < 50.0; t+= dt) {
 		Eigen::Vector2d err;
@@ -80,7 +79,7 @@ double runSimulation(std::vector<StatePair> const& data, const double measuremen
 
 		/// Correct step: incorporate information from measurement into KF's state
 		kf.correct(meas);
-		
+
 		Eigen::Vector2d pos(data[i].first);
 		double squaredError = (pos[0] - kf.state.x[0]) * (pos[0] - kf.state.x[0]);
 		sumSquaredError += squaredError;
@@ -88,43 +87,41 @@ double runSimulation(std::vector<StatePair> const& data, const double measuremen
 	return sumSquaredError;
 }
 
-int main(int argc, char * argv[]) {
+void runWindow(std::vector<StatePair> const& data, double lowMVar, double highMVar, double lowPVar, double highPVar, int recursionsRemaining = 0) {
+	std::stringstream ss;
+	std::ostream & output( (recursionsRemaining == 0) ? std::cout : ss);
 
-	std::vector<StatePair> data = generateData();
-
-	const double INTERVALS = 20;
-
-	double lowMVar = 0;
-	double highMVar = NOISE_AMPLITUDE * 5.0;
-	double lowPVar = 0;
-	double highPVar = 15;
 
 	double minErr = 10000;
 	double bestMVar = lowMVar;
 	double bestPVar = lowPVar;
-	
+
 	// Output column headers
-	std::cout << ",";
+	output << ",";
 	for (double pVar = lowPVar; pVar < highPVar; pVar += (highPVar - lowPVar) / INTERVALS) {
-		std::cout << pVar << ",";
+		output << pVar << ",";
 	}
-	std::cout << "process variance" << std::endl;
-	
-	for (double mVar = lowMVar; mVar < highMVar; mVar += (highMVar - lowMVar) / INTERVALS) {
+	output << "process variance" << std::endl;
+
+	const double dMVar = (highMVar - lowMVar) / INTERVALS;
+	const double dPVar = (highPVar - lowPVar) / INTERVALS;
+
+	for (double mVar = lowMVar; mVar < highMVar; mVar += dMVar) {
 		/// row headers
-		std::cout << mVar;
-		for (double pVar = lowPVar; pVar < highPVar; pVar += (highPVar - lowPVar) / INTERVALS) {
+		output << mVar;
+
+		for (double pVar = lowPVar; pVar < highPVar; pVar += dPVar) {
 			double err = runSimulation(data, mVar, pVar);
-			std::cout << "," << err;
+			output << "," << err;
 			if (err < minErr) {
 				bestMVar = mVar;
 				bestPVar = pVar;
 				minErr = err;
 			}
 		}
-		std::cout << std::endl;
+		output << std::endl;
 	}
-	std::cout << "measurement variance" << std::endl;
+	output << "measurement variance" << std::endl;
 
 	std::cerr << std::endl;
 	std::cerr << "Best found in the grid of parameters: " << std::endl;
@@ -132,6 +129,29 @@ int main(int argc, char * argv[]) {
 	std::cerr << "Process variance: " << bestPVar << std::endl;
 	std::cerr << "Sum squared error: " << minErr << std::endl;
 	std::cerr << std::endl;
+	
+	if (recursionsRemaining > 0) {
+		std::cerr << "Recursing..." << std::endl << std::endl;
+		runWindow(data,
+			bestMVar - dMVar,
+			bestMVar + dMVar,
+			bestPVar - dPVar,
+			bestPVar + dPVar,
+			recursionsRemaining -1);
+	}
+
+}
+
+int main(int argc, char * argv[]) {
+
+	std::vector<StatePair> data = generateData();
+
+	double lowMVar = 0;
+	double highMVar = NOISE_AMPLITUDE * 3.0;
+	double lowPVar = 0;
+	double highPVar = 11;
+
+	runWindow(data, lowMVar, highMVar, lowPVar, highPVar, 3);
 
 	return 0;
 }
