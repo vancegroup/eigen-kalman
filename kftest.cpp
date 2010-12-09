@@ -28,6 +28,10 @@ using namespace eigenkf;
 
 #define COL 10
 
+double noise() {
+	return (std::rand() % 10) / 10.0 - 0.5;
+}
+
 int main(int argc, char * argv[]) {
 	std::srand(std::time(NULL));
 	typedef SimpleState<2> state_t;
@@ -38,12 +42,11 @@ int main(int argc, char * argv[]) {
 	std::cout << "actual,measurement,filtered" << std::endl;
 	for (double t = 0; t < 50.0; t+= dt) {
 		kf.predict(dt);
-		double noise = (std::rand() % 5) / 5.0 - 2.5;
-		
+
 		Eigen::Vector2d pos(Eigen::Vector2d::Constant(t));
 		AbsoluteMeasurement<state_t> meas;
-		meas.measurement = (pos + Eigen::Vector2d::Constant(noise)).eval();
-		meas.covariance = Eigen::Vector2d::Constant(2.5).asDiagonal();
+		meas.measurement = (pos + Eigen::Vector2d(noise(), noise())).eval();
+		meas.covariance = Eigen::Vector2d::Constant(0.25).asDiagonal();
 		kf.correct(meas);
 		/*
 		std::cout << std::setw(COL) << (kf.state.x - pos).norm();
