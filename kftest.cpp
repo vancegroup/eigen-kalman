@@ -21,12 +21,15 @@
 // Standard includes
 #include <iostream>
 #include <iomanip>
+#include <cmath>
+#include <ctime>
 
 using namespace eigenkf;
 
 #define COL 10
 
 int main(int argc, char * argv[]) {
+	std::srand(std::time(NULL));
 	typedef SimpleState<2> state_t;
 	typedef ConstantProcess<2, state_t> process_t;
 	KalmanFilter<state_t, process_t> kf;
