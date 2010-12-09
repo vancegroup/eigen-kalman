@@ -34,7 +34,7 @@ double noise() {
 }
 
 int main(int argc, char * argv[]) {
-	//std::srand(std::time(NULL));
+	std::srand(std::time(NULL));
 
 	/// We want a simple 2d state
 	typedef SimpleState<2> state_t;
@@ -46,12 +46,12 @@ int main(int argc, char * argv[]) {
 	KalmanFilter<state_t, process_t> kf;
 
 	/// Set our process model's variance
-	kf.processModel.sigma = state_t::VecState::Constant(0.5);
+	kf.processModel.sigma = state_t::VecState::Constant(6.5);
 
 	double dt = 0.5;
 	double sumSquaredError = 0;
 	
-	const double measurementVariance = NOISE_AMPLITUDE / 2.0;
+	const double measurementVariance = 9; //NOISE_AMPLITUDE / 2.0;
 
 	/// CSV header row
 	std::cout << "actual,measurement,filtered,squared error" << std::endl;
