@@ -19,15 +19,12 @@
 #include <Eigen/Core>
 #include <Eigen/LU>
 
-#ifdef EIGEN_VERSION_AT_LEAST
-#	if EIGEN_VERSION_AT_LEAST(2, 9, 0)
-		// Eigen 3.0 series
-#		define eikfLUType FullPivLU
-#		define eikfLUFunc fullPivLu
-#	endif
-#endif
+#if EIGEN_VERSION_AT_LEAST(2, 9, 0)
+	// Eigen 3.0 series
+#	define eikfLUType FullPivLU
+#	define eikfLUFunc fullPivLu
 
-#ifndef eikfLUType
+#else
 	// Eigen 2.0.x
 #	define eikfLUType LU
 #	define eikfLUFunc lu
