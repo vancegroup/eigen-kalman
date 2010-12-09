@@ -25,6 +25,7 @@ int main(int argc, char * argv[]) {
 	typedef SimpleState<2> state_t;
 	typedef ConstantProcess<2, state_t> process_t;
 	KalmanFilter<state_t, process_t> kf;
+	kf.processModel.sigma = state_t::Vector::Constant(0.5);
 	double dt = 0.5;
 	for (double t = 0; t < 50.0; t+= dt) {
 		kf.predict(dt);

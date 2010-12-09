@@ -105,7 +105,7 @@ public:
 	}
 	
 	Vector const getInnovation(StateType const& state) {
-		return x - state.vec;
+		return state.vec - x;
 	}
 	
 };
