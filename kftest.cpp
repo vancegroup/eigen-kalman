@@ -19,9 +19,12 @@
 #include <eigenkf/KalmanFilter.h>
 
 // Standard includes
-// - none
+#include <iostream>
+#include <iomanip>
 
 using namespace eigenkf;
+
+#define COL 10
 
 int main(int argc, char * argv[]) {
 	typedef SimpleState<2> state_t;
@@ -38,7 +41,10 @@ int main(int argc, char * argv[]) {
 		meas.measurement = (pos + Eigen::Vector2d::Constant(noise)).eval();
 		meas.covariance = Eigen::Vector2d::Constant(2.5).asDiagonal();
 		kf.correct(meas);
-		std::cout << (kf.state.x - pos).norm() << std::endl;
+		std::cout << std::setw(COL) << (kf.state.x - pos).norm();
+		std::cout << std::setw(COL) << kf.state.x[0] << "," << std::setw(COL) << kf.state.x[1];
+		std::cout << std::setw(COL) << "Actual: ";
+		std::cout << std::setw(COL) << pos[0] << "," << std::setw(COL) << pos[1] << std::endl;;
 	}
 	return 0;
 
