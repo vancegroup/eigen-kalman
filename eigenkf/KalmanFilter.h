@@ -67,9 +67,7 @@ public:
 	}
 	
 	StateMatrix const& getNoiseCovariance(const double dt) {
-		for (int i = 0; i < StateType::DIM; ++i) {
-			noise(i, i) = dt * sigma(i);
-		}
+		noise = (dt * sigma).asDiagonal();
 		return noise;
 	}
 		
