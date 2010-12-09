@@ -93,28 +93,30 @@
     #endif
 
     // include files
-    #if (defined __GNUC__) && (defined __MINGW32__)
-      #include <intrin.h>
-      //including intrin.h works around a MINGW bug http://sourceforge.net/tracker/?func=detail&atid=102435&aid=2962480&group_id=2435
-      //in essence, intrin.h is included by windows.h and also declares intrinsics (just as emmintrin.h etc. below do).  However,
-      //intrin.h uses an extern "C" declaration, and g++ thus complains of duplicate declarations with conflicting linkage.  The linkage for intrinsics
-      //doesn't matter, but at that stage the compiler doesn't know; so, to avoid compile errors when windows.h is included after Eigen/Core,
-      //include intrin here.
-    #endif
-    #include <emmintrin.h>
-    #include <xmmintrin.h>
-    #ifdef  EIGEN_VECTORIZE_SSE3
+
+    // This extern "C" works around a MINGW-w64 compilation issue
+    // https://sourceforge.net/tracker/index.php?func=detail&aid=3018394&group_id=202880&atid=983354
+    // In essence, intrin.h is included by windows.h and also declares intrinsics (just as emmintrin.h etc. below do).
+    // However, intrin.h uses an extern "C" declaration, and g++ thus complains of duplicate declarations
+    // with conflicting linkage.  The linkage for intrinsics doesn't matter, but at that stage the compiler doesn't know;
+    // so, to avoid compile errors when windows.h is included after Eigen/Core, ensure intrinsics are extern "C" here too.
+    // notice that since these are C headers, the extern "C" is theoretically needed anyways.
+    extern "C" {
+      #include <emmintrin.h>
+      #include <xmmintrin.h>
+      #ifdef  EIGEN_VECTORIZE_SSE3
       #include <pmmintrin.h>
-    #endif
-    #ifdef EIGEN_VECTORIZE_SSSE3
+      #endif
+      #ifdef EIGEN_VECTORIZE_SSSE3
       #include <tmmintrin.h>
-    #endif
-    #ifdef EIGEN_VECTORIZE_SSE4_1
+      #endif
+      #ifdef EIGEN_VECTORIZE_SSE4_1
       #include <smmintrin.h>
-    #endif
-    #ifdef EIGEN_VECTORIZE_SSE4_2
+      #endif
+      #ifdef EIGEN_VECTORIZE_SSE4_2
       #include <nmmintrin.h>
-    #endif
+      #endif
+    } // end extern "C"
   #elif defined __ALTIVEC__
     #define EIGEN_VECTORIZE
     #define EIGEN_VECTORIZE_ALTIVEC
@@ -139,7 +141,14 @@
 #include <omp.h>
 #endif
 
+// MSVC for windows mobile does not have the errno.h file
+#if !(defined(_MSC_VER) && defined(_WIN32_WCE))
+#define EIGEN_HAS_ERRNO
+#endif
+
+#ifdef EIGEN_HAS_ERRNO
 #include <cerrno>
+#endif
 #include <cstdlib>
 #include <cmath>
 #include <complex>
@@ -158,7 +167,7 @@
 #endif
 
 // required for __cpuid, needs to be included after cmath
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && (defined(_M_IX86)||defined(_M_X64))
   #include <intrin.h>
 #endif
 
@@ -257,12 +266,12 @@ using std::size_t;
 #endif
 
 #include "src/Core/util/BlasUtil.h"
-#include "src/Core/MatrixStorage.h"
+#include "src/Core/DenseStorage.h"
 #include "src/Core/NestByValue.h"
 #include "src/Core/ForceAlignedAccess.h"
 #include "src/Core/ReturnByValue.h"
 #include "src/Core/NoAlias.h"
-#include "src/Core/DenseStorageBase.h"
+#include "src/Core/PlainObjectBase.h"
 #include "src/Core/Matrix.h"
 #include "src/Core/CwiseBinaryOp.h"
 #include "src/Core/CwiseUnaryOp.h"
@@ -299,6 +308,7 @@ using std::size_t;
 #include "src/Core/products/GeneralBlockPanelKernel.h"
 #include "src/Core/products/GeneralMatrixVector.h"
 #include "src/Core/products/GeneralMatrixMatrix.h"
+#include "src/Core/products/GeneralMatrixMatrixTriangular.h"
 #include "src/Core/products/SelfadjointMatrixVector.h"
 #include "src/Core/products/SelfadjointMatrixMatrix.h"
 #include "src/Core/products/SelfadjointProduct.h"
@@ -306,6 +316,7 @@ using std::size_t;
 #include "src/Core/products/TriangularMatrixVector.h"
 #include "src/Core/products/TriangularMatrixMatrix.h"
 #include "src/Core/products/TriangularSolverMatrix.h"
+#include "src/Core/products/TriangularSolverVector.h"
 #include "src/Core/BandMatrix.h"
 
 #include "src/Core/BooleanRedux.h"

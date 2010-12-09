@@ -25,43 +25,41 @@
 #ifndef EIGEN_TRIANGULARMATRIXVECTOR_H
 #define EIGEN_TRIANGULARMATRIXVECTOR_H
 
-template<bool LhsIsTriangular, typename Lhs, typename Rhs, typename Result,
-         int Mode, bool ConjLhs, bool ConjRhs, int StorageOrder>
-struct ei_product_triangular_vector_selector;
+namespace internal {
 
-template<typename Lhs, typename Rhs, typename Result, int Mode, bool ConjLhs, bool ConjRhs, int StorageOrder>
-struct ei_product_triangular_vector_selector<false,Lhs,Rhs,Result,Mode,ConjLhs,ConjRhs,StorageOrder>
-{
-  static EIGEN_DONT_INLINE  void run(const Lhs& lhs, const Rhs& rhs, Result& res, typename ei_traits<Lhs>::Scalar alpha)
-  {
-    typedef Transpose<Rhs>    TrRhs;  TrRhs trRhs(rhs);
-    typedef Transpose<Lhs>    TrLhs;  TrLhs trLhs(lhs);
-    typedef Transpose<Result> TrRes;  TrRes trRes(res);
-    ei_product_triangular_vector_selector<true,TrRhs,TrLhs,TrRes,
-      (Mode & UnitDiag) | (Mode & Lower) ? Upper : Lower, ConjRhs, ConjLhs, StorageOrder==RowMajor ? ColMajor : RowMajor>
-      ::run(trRhs,trLhs,trRes,alpha);
-  }
-};
+template<typename Index, int Mode, typename LhsScalar, bool ConjLhs, typename RhsScalar, bool ConjRhs, int StorageOrder>
+struct product_triangular_matrix_vector;
 
-template<typename Lhs, typename Rhs, typename Result, int Mode, bool ConjLhs, bool ConjRhs>
-struct ei_product_triangular_vector_selector<true,Lhs,Rhs,Result,Mode,ConjLhs,ConjRhs,ColMajor>
+template<typename Index, int Mode, typename LhsScalar, bool ConjLhs, typename RhsScalar, bool ConjRhs>
+struct product_triangular_matrix_vector<Index,Mode,LhsScalar,ConjLhs,RhsScalar,ConjRhs,ColMajor>
 {
-  typedef typename Rhs::Scalar Scalar;
-  typedef typename Rhs::Index Index;
+  typedef typename scalar_product_traits<LhsScalar, RhsScalar>::ReturnType ResScalar;
   enum {
     IsLower = ((Mode&Lower)==Lower),
     HasUnitDiag = (Mode & UnitDiag)==UnitDiag
   };
-  static EIGEN_DONT_INLINE  void run(const Lhs& lhs, const Rhs& rhs, Result& res, typename ei_traits<Lhs>::Scalar alpha)
+  static EIGEN_DONT_INLINE  void run(Index rows, Index cols, const LhsScalar* _lhs, Index lhsStride,
+                                     const RhsScalar* _rhs, Index rhsIncr, ResScalar* _res, Index resIncr, ResScalar alpha)
   {
+    EIGEN_UNUSED_VARIABLE(resIncr);
+    eigen_assert(resIncr==1);
+    
     static const Index PanelWidth = EIGEN_TUNE_TRIANGULAR_PANEL_WIDTH;
-    typename ei_conj_expr_if<ConjLhs,Lhs>::ret cjLhs(lhs);
-    typename ei_conj_expr_if<ConjRhs,Rhs>::ret cjRhs(rhs);
 
-    Index size = lhs.cols();
-    for (Index pi=0; pi<size; pi+=PanelWidth)
+    typedef Map<Matrix<LhsScalar,Dynamic,Dynamic,ColMajor>, 0, OuterStride<> > LhsMap;
+    const LhsMap lhs(_lhs,rows,cols,OuterStride<>(lhsStride));
+    typename conj_expr_if<ConjLhs,LhsMap>::type cjLhs(lhs);
+    
+    typedef Map<Matrix<RhsScalar,Dynamic,1>, 0, InnerStride<> > RhsMap;
+    const RhsMap rhs(_rhs,cols,InnerStride<>(rhsIncr));
+    typename conj_expr_if<ConjRhs,RhsMap>::type cjRhs(rhs);
+
+    typedef Map<Matrix<ResScalar,Dynamic,1> > ResMap;
+    ResMap res(_res,rows);
+
+    for (Index pi=0; pi<cols; pi+=PanelWidth)
     {
-      Index actualPanelWidth = std::min(PanelWidth, size-pi);
+      Index actualPanelWidth = std::min(PanelWidth, cols-pi);
       for (Index k=0; k<actualPanelWidth; ++k)
       {
         Index i = pi + k;
@@ -72,38 +70,50 @@ struct ei_product_triangular_vector_selector<true,Lhs,Rhs,Result,Mode,ConjLhs,Co
         if (HasUnitDiag)
           res.coeffRef(i) += alpha * cjRhs.coeff(i);
       }
-      Index r = IsLower ? size - pi - actualPanelWidth : pi;
+      Index r = IsLower ? cols - pi - actualPanelWidth : pi;
       if (r>0)
       {
         Index s = IsLower ? pi+actualPanelWidth : 0;
-        ei_general_matrix_vector_product<Index,Scalar,ColMajor,ConjLhs,Scalar,ConjRhs>::run(
+        general_matrix_vector_product<Index,LhsScalar,ColMajor,ConjLhs,RhsScalar,ConjRhs>::run(
             r, actualPanelWidth,
-            &(lhs.const_cast_derived().coeffRef(s,pi)), lhs.outerStride(),
-            &rhs.coeff(pi), rhs.innerStride(),
-            &res.coeffRef(s), res.innerStride(), alpha);
+            &lhs.coeff(s,pi), lhsStride,
+            &rhs.coeff(pi), rhsIncr,
+            &res.coeffRef(s), resIncr, alpha);
       }
     }
   }
 };
 
-template<typename Lhs, typename Rhs, typename Result, int Mode, bool ConjLhs, bool ConjRhs>
-struct ei_product_triangular_vector_selector<true,Lhs,Rhs,Result,Mode,ConjLhs,ConjRhs,RowMajor>
+template<typename Index, int Mode, typename LhsScalar, bool ConjLhs, typename RhsScalar, bool ConjRhs>
+struct product_triangular_matrix_vector<Index,Mode,LhsScalar,ConjLhs,RhsScalar,ConjRhs,RowMajor>
 {
-  typedef typename Rhs::Scalar Scalar;
-  typedef typename Rhs::Index Index;
+  typedef typename scalar_product_traits<LhsScalar, RhsScalar>::ReturnType ResScalar;
   enum {
     IsLower = ((Mode&Lower)==Lower),
     HasUnitDiag = (Mode & UnitDiag)==UnitDiag
   };
-  static void run(const Lhs& lhs, const Rhs& rhs, Result& res, typename ei_traits<Lhs>::Scalar alpha)
+  static void run(Index rows, Index cols, const LhsScalar* _lhs, Index lhsStride,
+                  const RhsScalar* _rhs, Index rhsIncr, ResScalar* _res, Index resIncr, ResScalar alpha)
   {
+    eigen_assert(rhsIncr==1);
+    EIGEN_UNUSED_VARIABLE(rhsIncr);
+    
     static const Index PanelWidth = EIGEN_TUNE_TRIANGULAR_PANEL_WIDTH;
-    typename ei_conj_expr_if<ConjLhs,Lhs>::ret cjLhs(lhs);
-    typename ei_conj_expr_if<ConjRhs,Rhs>::ret cjRhs(rhs);
-    Index size = lhs.cols();
-    for (Index pi=0; pi<size; pi+=PanelWidth)
+
+    typedef Map<Matrix<LhsScalar,Dynamic,Dynamic,RowMajor>, 0, OuterStride<> > LhsMap;
+    const LhsMap lhs(_lhs,rows,cols,OuterStride<>(lhsStride));
+    typename conj_expr_if<ConjLhs,LhsMap>::type cjLhs(lhs);
+
+    typedef Map<Matrix<RhsScalar,Dynamic,1> > RhsMap;
+    const RhsMap rhs(_rhs,cols);
+    typename conj_expr_if<ConjRhs,RhsMap>::type cjRhs(rhs);
+
+    typedef Map<Matrix<ResScalar,Dynamic,1>, 0, InnerStride<> > ResMap;
+    ResMap res(_res,rows,InnerStride<>(resIncr));
+    
+    for (Index pi=0; pi<cols; pi+=PanelWidth)
     {
-      Index actualPanelWidth = std::min(PanelWidth, size-pi);
+      Index actualPanelWidth = std::min(PanelWidth, cols-pi);
       for (Index k=0; k<actualPanelWidth; ++k)
       {
         Index i = pi + k;
@@ -114,33 +124,35 @@ struct ei_product_triangular_vector_selector<true,Lhs,Rhs,Result,Mode,ConjLhs,Co
         if (HasUnitDiag)
           res.coeffRef(i) += alpha * cjRhs.coeff(i);
       }
-      Index r = IsLower ? pi : size - pi - actualPanelWidth;
+      Index r = IsLower ? pi : cols - pi - actualPanelWidth;
       if (r>0)
       {
         Index s = IsLower ? 0 : pi + actualPanelWidth;
-        ei_general_matrix_vector_product<Index,Scalar,RowMajor,ConjLhs,Scalar,ConjRhs>::run(
+        general_matrix_vector_product<Index,LhsScalar,RowMajor,ConjLhs,RhsScalar,ConjRhs>::run(
             actualPanelWidth, r,
-            &(lhs.const_cast_derived().coeffRef(pi,s)), lhs.outerStride(),
-            &(rhs.const_cast_derived().coeffRef(s)), 1,
-            &res.coeffRef(pi,0), res.innerStride(), alpha);
+            &(lhs.coeff(pi,s)), lhsStride,
+            &(rhs.coeff(s)), rhsIncr,
+            &res.coeffRef(pi), resIncr, alpha);
       }
     }
   }
 };
 
 /***************************************************************************
-* Wrapper to ei_product_triangular_vector
+* Wrapper to product_triangular_vector
 ***************************************************************************/
 
 template<int Mode, bool LhsIsTriangular, typename Lhs, typename Rhs>
-struct ei_traits<TriangularProduct<Mode,LhsIsTriangular,Lhs,false,Rhs,true> >
- : ei_traits<ProductBase<TriangularProduct<Mode,LhsIsTriangular,Lhs,false,Rhs,true>, Lhs, Rhs> >
+struct traits<TriangularProduct<Mode,LhsIsTriangular,Lhs,false,Rhs,true> >
+ : traits<ProductBase<TriangularProduct<Mode,LhsIsTriangular,Lhs,false,Rhs,true>, Lhs, Rhs> >
 {};
 
 template<int Mode, bool LhsIsTriangular, typename Lhs, typename Rhs>
-struct ei_traits<TriangularProduct<Mode,LhsIsTriangular,Lhs,true,Rhs,false> >
- : ei_traits<ProductBase<TriangularProduct<Mode,LhsIsTriangular,Lhs,true,Rhs,false>, Lhs, Rhs> >
+struct traits<TriangularProduct<Mode,LhsIsTriangular,Lhs,true,Rhs,false> >
+ : traits<ProductBase<TriangularProduct<Mode,LhsIsTriangular,Lhs,true,Rhs,false>, Lhs, Rhs> >
 {};
+
+} // end namespace internal
 
 template<int Mode, typename Lhs, typename Rhs>
 struct TriangularProduct<Mode,true,Lhs,false,Rhs,true>
@@ -152,7 +164,7 @@ struct TriangularProduct<Mode,true,Lhs,false,Rhs,true>
 
   template<typename Dest> void scaleAndAddTo(Dest& dst, Scalar alpha) const
   {
-    ei_assert(dst.rows()==m_lhs.rows() && dst.cols()==m_rhs.cols());
+    eigen_assert(dst.rows()==m_lhs.rows() && dst.cols()==m_rhs.cols());
 
     const ActualLhsType lhs = LhsBlasTraits::extract(m_lhs);
     const ActualRhsType rhs = RhsBlasTraits::extract(m_rhs);
@@ -160,13 +172,13 @@ struct TriangularProduct<Mode,true,Lhs,false,Rhs,true>
     Scalar actualAlpha = alpha * LhsBlasTraits::extractScalarFactor(m_lhs)
                                * RhsBlasTraits::extractScalarFactor(m_rhs);
 
-    ei_product_triangular_vector_selector
-      <true,_ActualLhsType,_ActualRhsType,Dest,
-       Mode,
-       LhsBlasTraits::NeedToConjugate,
-       RhsBlasTraits::NeedToConjugate,
-       (int(ei_traits<Lhs>::Flags)&RowMajorBit) ? RowMajor : ColMajor>
-      ::run(lhs,rhs,dst,actualAlpha);
+    internal::product_triangular_matrix_vector
+      <Index,Mode,
+       typename _ActualLhsType::Scalar, LhsBlasTraits::NeedToConjugate,
+       typename _ActualRhsType::Scalar, RhsBlasTraits::NeedToConjugate,
+       (int(internal::traits<Lhs>::Flags)&RowMajorBit) ? RowMajor : ColMajor>
+      ::run(lhs.rows(),lhs.cols(),lhs.data(),lhs.outerStride(),rhs.data(),rhs.innerStride(),
+                                  dst.data(),dst.innerStride(),actualAlpha);
   }
 };
 
@@ -181,7 +193,7 @@ struct TriangularProduct<Mode,false,Lhs,true,Rhs,false>
   template<typename Dest> void scaleAndAddTo(Dest& dst, Scalar alpha) const
   {
 
-    ei_assert(dst.rows()==m_lhs.rows() && dst.cols()==m_rhs.cols());
+    eigen_assert(dst.rows()==m_lhs.rows() && dst.cols()==m_rhs.cols());
 
     const ActualLhsType lhs = LhsBlasTraits::extract(m_lhs);
     const ActualRhsType rhs = RhsBlasTraits::extract(m_rhs);
@@ -189,13 +201,13 @@ struct TriangularProduct<Mode,false,Lhs,true,Rhs,false>
     Scalar actualAlpha = alpha * LhsBlasTraits::extractScalarFactor(m_lhs)
                                * RhsBlasTraits::extractScalarFactor(m_rhs);
 
-    ei_product_triangular_vector_selector
-      <false,_ActualLhsType,_ActualRhsType,Dest,
-       Mode,
-       LhsBlasTraits::NeedToConjugate,
-       RhsBlasTraits::NeedToConjugate,
-       (int(ei_traits<Rhs>::Flags)&RowMajorBit) ? RowMajor : ColMajor>
-      ::run(lhs,rhs,dst,actualAlpha);
+    internal::product_triangular_matrix_vector
+      <Index,(Mode & UnitDiag) | (Mode & Lower) ? Upper : Lower,
+       typename _ActualRhsType::Scalar, RhsBlasTraits::NeedToConjugate,
+       typename _ActualLhsType::Scalar, LhsBlasTraits::NeedToConjugate,
+       (int(internal::traits<Rhs>::Flags)&RowMajorBit) ? ColMajor : RowMajor>
+      ::run(rhs.rows(),rhs.cols(),rhs.data(),rhs.outerStride(),lhs.data(),lhs.innerStride(),
+                                  dst.data(),dst.innerStride(),actualAlpha);
   }
 };
 

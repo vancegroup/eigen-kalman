@@ -125,27 +125,33 @@ const unsigned int LinearAccessBit = 0x10;
 
 /** \ingroup flags
   *
-  * Means that the underlying array of coefficients can be directly accessed. This means two things.
-  * First, references to the coefficients must be available through coeffRef(int, int). This rules out read-only
-  * expressions whose coefficients are computed on demand by coeff(int, int). Second, the memory layout of the
-  * array of coefficients must be exactly the natural one suggested by rows(), cols(), outerStride(), innerStride(), and the RowMajorBit.
-  * This rules out expressions such as Diagonal, whose coefficients, though referencable, do not have
-  * such a regular memory layout.
+  * Means the expression has a coeffRef() method, i.e. is writable as its individual coefficients are directly addressable.
+  * This rules out read-only expressions.
+  *
+  * Note that DirectAccessBit implies LvalueBit, but the converse is false: LvalueBit doesn't imply DirectAccessBit because
+  * DirectAccessBit means that the whole memory layout is a plain strided array.
+  *
+  * Expressions having LvalueBit also have their coeff() method returning a const reference instead of returning a new value.
   */
-const unsigned int DirectAccessBit = 0x20;
+const unsigned int LvalueBit = 0x20;
+
+/** \ingroup flags
+  *
+  * Means that the underlying array of coefficients can be directly accessed. This means two things.
+  * 
+  * First, this means LvalueBit, i.e. this means that the expression has a coeffRef() method, i.e. is writable as its
+  * individual coefficients are directly addressable. This rules out read-only expressions.
+  *
+  * Second, the memory layout of the array of coefficients must be exactly the natural one suggested by rows(), cols(),
+  * outerStride(), innerStride(), and the RowMajorBit. This rules out expressions such as Diagonal, whose coefficients,
+  * though referencable, do not have such a regular memory layout.
+  */
+const unsigned int DirectAccessBit = 0x40;
 
 /** \ingroup flags
   *
   * means the first coefficient packet is guaranteed to be aligned */
-const unsigned int AlignedBit = 0x40;
-
-/** \ingroup flags
-  *
-  * Means the expression is writable. Note that DirectAccessBit implies LvalueBit.
-  * Internaly, it is mainly used to enable the writable coeff accessors, and makes
-  * the read-only coeff accessors to return by const reference.
-  */
-const unsigned int LvalueBit = 0x80;
+const unsigned int AlignedBit = 0x80;
 
 const unsigned int NestByRefBit = 0x100;
 
@@ -209,15 +215,6 @@ enum {
   OnTheRight = 2
 };
 
-// options for SVD decomposition
-enum {
-  SkipU = 0x1,
-  SkipV = 0x2,
-  AtLeastAsManyRowsAsCols = 0x4,
-  AtLeastAsManyColsAsRows = 0x8,
-  Square = AtLeastAsManyRowsAsCols | AtLeastAsManyColsAsRows
-};
-
 /* the following could as well be written:
  *   enum NoChange_t { NoChange };
  * but it feels dangerous to disambiguate overloaded functions on enum/integer types.
@@ -251,15 +248,24 @@ enum AccessorLevels {
 enum DecompositionOptions {
   Pivoting            = 0x01, // LDLT,
   NoPivoting          = 0x02, // LDLT,
-  ComputeU            = 0x10, // SVD,
-  ComputeR            = 0x20, // SVD,
+  ComputeFullU        = 0x04, // SVD,
+  ComputeThinU        = 0x08, // SVD,
+  ComputeFullV        = 0x10, // SVD,
+  ComputeThinV        = 0x20, // SVD,
   EigenvaluesOnly     = 0x40, // all eigen solvers
-  ComputeEigenvectors = 0x80,  // all eigen solvers
+  ComputeEigenvectors = 0x80, // all eigen solvers
   EigVecMask = EigenvaluesOnly | ComputeEigenvectors,
   Ax_lBx              = 0x100,
   ABx_lx              = 0x200,
   BAx_lx              = 0x400,
   GenEigMask = Ax_lBx | ABx_lx | BAx_lx
+};
+
+enum QRPreconditioners {
+  NoQRPreconditioner,
+  HouseholderQRPreconditioner,
+  ColPivHouseholderQRPreconditioner,
+  FullPivHouseholderQRPreconditioner
 };
 
 /** \brief Enum for reporting the status of a computation.
