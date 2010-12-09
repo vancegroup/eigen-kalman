@@ -106,7 +106,7 @@ namespace eigenkf {
 		}
 	
 		VecMeas const getInnovation(StateType const& state) {
-			return state.x - measurement;
+			return measurement - state.x;
 		}
 	
 	};
