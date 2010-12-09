@@ -1,3 +1,8 @@
 http://www.cs.cmu.edu/~biorobotics/papers/sbp_papers/integrated3/kleeman_kalman_basics.pdf
-http://hci.iastate.edu/~rpavlik/doxygen/tag-20090724/group__kalmanfiltergroup.html
 
+TooN/TAG KalmanFilter:
+http://hci.iastate.edu/~rpavlik/doxygen/tag-20090724/group__kalmanfiltergroup.html
+http://cvs.savannah.gnu.org/viewvc/toon/tag/tag/kalmanfilter.h?revision=1.11&view=markup
+http://cvs.savannah.gnu.org/viewvc/toon/tag/tag/measurements.h?revision=1.5&view=markup
+http://cvs.savannah.gnu.org/viewvc/toon/tag/tag/constantposition.h?revision=1.2&view=markup
+http://cvs.savannah.gnu.org/viewvc/toon/tag/tag/constantvelocity.h?revision=1.6&view=markup
