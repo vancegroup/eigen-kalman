@@ -32,6 +32,7 @@ int main(int argc, char * argv[]) {
 	KalmanFilter<state_t, process_t> kf;
 	kf.processModel.sigma = state_t::VecState::Constant(0.5);
 	double dt = 0.5;
+	std::cout << "actual,measurement,filtered" << std::endl;
 	for (double t = 0; t < 50.0; t+= dt) {
 		kf.predict(dt);
 		double noise = (std::rand() % 5) / 5.0 - 2.5;
@@ -41,10 +42,14 @@ int main(int argc, char * argv[]) {
 		meas.measurement = (pos + Eigen::Vector2d::Constant(noise)).eval();
 		meas.covariance = Eigen::Vector2d::Constant(2.5).asDiagonal();
 		kf.correct(meas);
+		/*
 		std::cout << std::setw(COL) << (kf.state.x - pos).norm();
 		std::cout << std::setw(COL) << kf.state.x[0] << "," << std::setw(COL) << kf.state.x[1];
 		std::cout << std::setw(COL) << "Actual: ";
 		std::cout << std::setw(COL) << pos[0] << "," << std::setw(COL) << pos[1] << std::endl;;
+		*/
+		std::cout << pos[0] << "," << meas.measurement[0] << "," << kf.state.x[0] << std::endl;
+		
 	}
 	return 0;
 
