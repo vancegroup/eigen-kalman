@@ -27,9 +27,10 @@
 using namespace eigenkf;
 
 #define COL 10
+#define NOISE_AMPLITUDE 3.0
 
 double noise() {
-	return (std::rand() % 10) / 10.0 - 0.5;
+	return ((std::rand() % 100) / 50.0 - 1.0) * NOISE_AMPLITUDE;
 }
 
 int main(int argc, char * argv[]) {
