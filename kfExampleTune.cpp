@@ -69,73 +69,50 @@ double runSimulation(const double measurementVariance, const double processModel
 		double squaredError = (pos[0] - kf.state.x[0]) * (pos[0] - kf.state.x[0]);
 		sumSquaredError += squaredError;
 	}
-	std::cout << std::setw(COL) << measurementVariance;
-	std::cout << std::setw(COL) << processModelVariance;
-	std::cout << std::setw(COL) << sumSquaredError;
-	std::cout << std::endl;
 	return sumSquaredError;
 }
 
-Eigen::Vector2d g_mVariance;
-Eigen::Vector2d g_pVariance;
-double g_splitMeasurement;
-double g_splitProcess;
-
-Eigen::Matrix2d g_errors;
-int g_whichMVkeep = -1;
-int g_whichPVkeep = -1;
-double g_minErr = 10000000;
-
-void checkCorner(int whichMV, int whichPV) {
-	double err = runSimulation(g_mVariance[whichMV], g_pVariance[whichPV]);
-	g_errors(whichMV, whichPV) = err;
-	if (err < g_minErr) {
-		g_whichMVkeep = whichMV;
-		g_whichPVkeep = whichPV;
-		g_minErr = err;
-	}
-}
 int main(int argc, char * argv[]) {
-	/// Starting windows to consider
-	g_mVariance << 0, NOISE_AMPLITUDE * 2.0;
-	g_pVariance << 0, 15.0;
+	const double INTERVALS = 20;
 
-	for (unsigned int iterations = 0; iterations < 10; ++iterations) {
-		double err;
+	double lowMVar = 0;
+	double highMVar = NOISE_AMPLITUDE * 3.0;
+	double lowPVar = 0;
+	double highPVar = 15;
 
-		checkCorner(0, 0);
-		checkCorner(0, 1);
-		checkCorner(1, 0);
-		checkCorner(1, 1);
-
-		g_splitMeasurement = g_mVariance.sum() / 2.0;
-		g_splitProcess = g_pVariance.sum() / 2.0;
-
-		std::cout << std::endl;
-		std::cout << "After this iteration, our g_errors look like: " << std::endl;
-		std::cout << g_errors << std::endl;
-		std::cout << "We are keeping these parameters: " << std::endl;
-		std::cout << "Measurement Variance: " << g_mVariance[g_whichMVkeep] << std::endl;
-		std::cout << "Process variance: " << g_pVariance[g_whichPVkeep] << std::endl;
-		std::cout << "Sum squared error: " << g_minErr << std::endl;
-		std::cout << std::endl;
-
-		/// Adjust window
-		for (int whichMV = 0; whichMV < 2; ++whichMV) {
-			for (int whichPV = 0; whichPV < 2; ++whichPV) {
-				if (whichMV != g_whichMVkeep) {
-					// update this measurement variance
-					g_mVariance[whichMV] = splitMeasurement;
-				}
-				if (whichPV != g_whichPVkeep) {
-					// update this process variance
-					g_pVariance[whichPV] = splitProcess;
-				}
+	double minErr = 10000;
+	double bestMVar = lowMVar;
+	double bestPVar = lowPVar;
+	
+	// Output column headers
+	std::cout << ",";
+	for (double pVar = lowPVar; pVar < highPVar; pVar += (highPVar - lowPVar) / INTERVALS) {
+		std::cout << pVar << ",";
+	}
+	std::cout << "process variance" << std::endl;
+	
+	for (double mVar = lowMVar; mVar < highMVar; mVar += (highMVar - lowMVar) / INTERVALS) {
+		/// row headers
+		std::cout << mVar;
+		for (double pVar = lowPVar; pVar < highPVar; pVar += (highPVar - lowPVar) / INTERVALS) {
+			double err = runSimulation(mVar, pVar);
+			std::cout << "," << err;
+			if (err < minErr) {
+				bestMVar = mVar;
+				bestPVar = pVar;
+				minErr = err;
 			}
 		}
-
+		std::cout << std::endl;
 	}
+	std::cout << "measurement variance" << std::endl;
+
+	std::cerr << std::endl;
+	std::cerr << "Best found in the grid of parameters: " << std::endl;
+	std::cerr << "Measurement Variance: " << bestMVar << std::endl;
+	std::cerr << "Process variance: " << bestPVar << std::endl;
+	std::cerr << "Sum squared error: " << minErr << std::endl;
+	std::cerr << std::endl;
 
 	return 0;
-
 }
