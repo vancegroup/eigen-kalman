@@ -1,0 +1,3 @@
+http://www.cs.cmu.edu/~biorobotics/papers/sbp_papers/integrated3/kleeman_kalman_basics.pdf
+http://hci.iastate.edu/~rpavlik/doxygen/tag-20090724/group__kalmanfiltergroup.html
+
