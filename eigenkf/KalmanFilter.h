@@ -76,6 +76,14 @@ public:
 	
 };
 
+template<class StateType>
+class AbsoluteMeasurement {
+public:
+	static const int DIM = StateType::DIM;
+	typedef Eigen::Matrix<double, DIM, 1> Vector;
+	Vector x;
+	
+};
 
 template<class StateType, class ProcessModelType>
 class KalmanFilter {
