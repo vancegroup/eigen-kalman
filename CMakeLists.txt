@@ -61,3 +61,4 @@ if(WIN32)
 endif()
 
 add_executable(kftest eigenkf/KalmanFilter.h kftest.cpp)
+add_executable(kfExampleTune eigenkf/KalmanFilter.h kfExampleTune.cpp)
