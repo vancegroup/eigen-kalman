@@ -30,6 +30,8 @@ using namespace eigenkf;
 #define COL 10
 #define NOISE_AMPLITUDE 3.0
 
+#define USE_GNUPLOT
+
 const double dt = 0.5;
 const double INTERVALS = 20;
 
@@ -89,30 +91,45 @@ double runSimulation(std::vector<StatePair> const& data, const double measuremen
 
 void runWindow(std::vector<StatePair> const& data, double lowMVar, double highMVar, double lowPVar, double highPVar, int recursionsRemaining = 0) {
 	std::stringstream ss;
+#ifdef USE_GNUPLOT
+	static bool doneOutput = false;
+	std::ostream & output(doneOutput ? ss : std::cout);
+	std::string separator(" ");
+	doneOutput = true;
+#else
 	std::ostream & output( (recursionsRemaining == 0) ? std::cout : ss);
+	std::string separator(",");
+#endif
 
 
 	double minErr = 10000;
 	double bestMVar = lowMVar;
 	double bestPVar = lowPVar;
-
+#ifndef USE_GNUPLOT
 	// Output column headers
-	output << ",";
+	output << separator;
 	for (double pVar = lowPVar; pVar < highPVar; pVar += (highPVar - lowPVar) / INTERVALS) {
-		output << pVar << ",";
+		output << pVar << separator;
 	}
+
 	output << "process variance" << std::endl;
+#endif
 
 	const double dMVar = (highMVar - lowMVar) / INTERVALS;
 	const double dPVar = (highPVar - lowPVar) / INTERVALS;
 
 	for (double mVar = lowMVar; mVar < highMVar; mVar += dMVar) {
+#ifndef USE_GNUPLOT
 		/// row headers
 		output << mVar;
+#endif
 
 		for (double pVar = lowPVar; pVar < highPVar; pVar += dPVar) {
 			double err = runSimulation(data, mVar, pVar);
-			output << "," << err;
+#ifdef USE_GNUPLOT
+			//std::cout << mVar << " " << pVar << " " << err << std::endl;
+#endif
+			output << separator << err;
 			if (err < minErr) {
 				bestMVar = mVar;
 				bestPVar = pVar;
@@ -151,6 +168,9 @@ int main(int argc, char * argv[]) {
 	double lowPVar = 0;
 	double highPVar = 11;
 
+#ifdef USE_GNUPLOT
+	//std::cout << "mVar pVar err" << std::endl;
+#endif
 	runWindow(data, lowMVar, highMVar, lowPVar, highPVar, 3);
 
 	return 0;

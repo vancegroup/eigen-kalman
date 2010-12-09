@@ -1,0 +1,3 @@
+set surface
+set hidden3d
+splot "grid.dat" matrix with lines
