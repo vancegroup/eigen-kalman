@@ -30,13 +30,30 @@ using namespace eigenkf;
 #define COL 10
 #define NOISE_AMPLITUDE 3.0
 
+const double dt = 0.5;
+
+
 double noise() {
 	return ((std::rand() % 100) / 50.0 - 1.0) * NOISE_AMPLITUDE;
 }
 
-double runSimulation(const double measurementVariance, const double processModelVariance) {
+typedef std::pair<Eigen::Vector2d, Eigen::Vector2d> StatePair;
+std::vector<StatePair> generateData() {
 	/// Reset the random seed
 	std::srand(200);
+	std::vector<StatePair> ret;
+	for (double t = 0; t < 50.0; t+= dt) {
+		Eigen::Vector2d err;
+		err[0] = noise();
+		err[1] = noise();
+		Eigen::Vector2d pos(Eigen::Vector2d::Constant(t));
+		Eigen::Vector2d measurement(pos + err);
+		ret.push_back(StatePair(pos, measurement));
+	}
+	return ret;
+}
+
+double runSimulation(std::vector<StatePair> const& data, const double measurementVariance, const double processModelVariance) {
 
 	/// We want a simple 2d state
 	typedef SimpleState<2> state_t;
@@ -50,22 +67,21 @@ double runSimulation(const double measurementVariance, const double processModel
 	/// Set our process model's variance
 	kf.processModel.sigma = state_t::VecState::Constant(processModelVariance);
 
-	double dt = 0.5;
 	double sumSquaredError = 0;
 
-	for (double t = 0; t < 50.0; t+= dt) {
+	for (unsigned int i = 0; i < data.size(); ++i) {
 		/// Predict step: Update Kalman filter by predicting ahead by dt
 		kf.predict(dt);
 
 		/// "take a measurement" - in this case, noisify the actual measurement
-		Eigen::Vector2d pos(Eigen::Vector2d::Constant(t));
 		AbsoluteMeasurement<state_t> meas;
-		meas.measurement = (pos + Eigen::Vector2d(noise(), noise())).eval();
+		meas.measurement = data[i].second;
 		meas.covariance = Eigen::Vector2d::Constant(measurementVariance).asDiagonal();
 
 		/// Correct step: incorporate information from measurement into KF's state
 		kf.correct(meas);
-
+		
+		Eigen::Vector2d pos(data[i].first);
 		double squaredError = (pos[0] - kf.state.x[0]) * (pos[0] - kf.state.x[0]);
 		sumSquaredError += squaredError;
 	}
@@ -73,10 +89,13 @@ double runSimulation(const double measurementVariance, const double processModel
 }
 
 int main(int argc, char * argv[]) {
+
+	std::vector<StatePair> data = generateData();
+
 	const double INTERVALS = 20;
 
 	double lowMVar = 0;
-	double highMVar = NOISE_AMPLITUDE * 3.0;
+	double highMVar = NOISE_AMPLITUDE * 5.0;
 	double lowPVar = 0;
 	double highPVar = 15;
 
@@ -95,7 +114,7 @@ int main(int argc, char * argv[]) {
 		/// row headers
 		std::cout << mVar;
 		for (double pVar = lowPVar; pVar < highPVar; pVar += (highPVar - lowPVar) / INTERVALS) {
-			double err = runSimulation(mVar, pVar);
+			double err = runSimulation(data, mVar, pVar);
 			std::cout << "," << err;
 			if (err < minErr) {
 				bestMVar = mVar;
