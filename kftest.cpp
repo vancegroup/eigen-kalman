@@ -13,7 +13,7 @@
 */
 
 // Internal Includes
-// - none
+#include "generateData.h"
 
 // Library/third-party includes
 #include <eigenkf/KalmanFilter.h>
@@ -27,11 +27,6 @@
 using namespace eigenkf;
 
 #define COL 10
-#define NOISE_AMPLITUDE 3.0
-
-double noise() {
-	return ((std::rand() % 100) / 50.0 - 1.0) * NOISE_AMPLITUDE;
-}
 
 int main(int argc, char * argv[]) {
 	std::srand(std::time(NULL));
@@ -53,16 +48,21 @@ int main(int argc, char * argv[]) {
 	
 	const double measurementVariance = 9; //NOISE_AMPLITUDE / 2.0;
 
+	/// for sine curve
+	
+	std::vector<StatePair> data = generateSineData(dt);
 	/// CSV header row
-	std::cout << "actual,measurement,filtered,squared error" << std::endl;
-	for (double t = 0; t < 50.0; t+= dt) {
+	std::cout << "actual x,actual y,measurement x,measurement y,filtered x,filtered y,squared error" << std::endl;
+	double t = 0;
+	for (unsigned int i = 0; i < data.size(); ++i) {
 		/// Predict step: Update Kalman filter by predicting ahead by dt
 		kf.predict(dt);
 
 		/// "take a measurement" - in this case, noisify the actual measurement
-		Eigen::Vector2d pos(Eigen::Vector2d::Constant(t));
+		Eigen::Vector2d pos = data[i].first;
+		Eigen::Vector2d m = data[i].second;
 		AbsoluteMeasurement<state_t> meas;
-		meas.measurement = (pos + Eigen::Vector2d(noise(), noise())).eval();
+		meas.measurement = m;
 		meas.covariance = Eigen::Vector2d::Constant(measurementVariance).asDiagonal();
 
 		/// Correct step: incorporate information from measurement into KF's state
@@ -71,11 +71,13 @@ int main(int argc, char * argv[]) {
 		/// Output info for csv
 		double squaredError = (pos[0] - kf.state.x[0]) * (pos[0] - kf.state.x[0]);
 		sumSquaredError += squaredError;
-		std::cout << pos[0] << ",";
-		std::cout << meas.measurement[0] << ",";
-		std::cout << kf.state.x[0] << ",";
+		std::cout << pos[0] << "," << pos[1] << ",";
+		std::cout << meas.measurement[0] << "," << meas.measurement[1] << ",";
+		std::cout << kf.state.x[0] << "," << kf.state.x[1] << ",";
 		std::cout << squaredError;
 		std::cout << std::endl;
+		
+		t += dt;
 
 	}
 	std::cerr << "Sum squared error: " << sumSquaredError << std::endl;

@@ -60,5 +60,5 @@ if(WIN32)
 	add_definitions(-DNOMINMAX)
 endif()
 
-add_executable(kftest eigenkf/KalmanFilter.h kftest.cpp)
-add_executable(kfExampleTune eigenkf/KalmanFilter.h kfExampleTune.cpp)
+add_executable(kftest eigenkf/KalmanFilter.h kftest.cpp generateData.h)
+add_executable(kfExampleTune eigenkf/KalmanFilter.h kfExampleTune.cpp generateData.h)

@@ -13,7 +13,7 @@
 */
 
 // Internal Includes
-// - none
+#include "generateData.h"
 
 // Library/third-party includes
 #include <eigenkf/KalmanFilter.h>
@@ -28,31 +28,11 @@
 using namespace eigenkf;
 
 #define COL 10
-#define NOISE_AMPLITUDE 3.0
 
 #define USE_GNUPLOT
 
-const double dt = 0.5;
 const double INTERVALS = 20;
-
-
-double noise() {
-	return ((std::rand() % 100) / 50.0 - 1.0) * NOISE_AMPLITUDE;
-}
-
-typedef std::pair<Eigen::Vector2d, Eigen::Vector2d> StatePair;
-std::vector<StatePair> generateData() {
-	std::vector<StatePair> ret;
-	for (double t = 0; t < 50.0; t+= dt) {
-		Eigen::Vector2d err;
-		err[0] = noise();
-		err[1] = noise();
-		Eigen::Vector2d pos(Eigen::Vector2d::Constant(t));
-		Eigen::Vector2d measurement(pos + err);
-		ret.push_back(StatePair(pos, measurement));
-	}
-	return ret;
-}
+const double dt = 0.5;
 
 double runSimulation(std::vector<StatePair> const& data, const double measurementVariance, const double processModelVariance) {
 
@@ -161,10 +141,10 @@ void runWindow(std::vector<StatePair> const& data, double lowMVar, double highMV
 
 int main(int argc, char * argv[]) {
 
-	std::vector<StatePair> data = generateData();
+	std::vector<StatePair> data = generateLineData();
 
 	double lowMVar = 0;
-	double highMVar = NOISE_AMPLITUDE * 3.0;
+	double highMVar = 9.0;
 	double lowPVar = 0;
 	double highPVar = 11;
 
