@@ -118,7 +118,7 @@ if(NOT IN_DASHBOARD_SCRIPT)
 
 	if(NOT "1.${CMAKE_VERSION}" VERSION_LESS "1.2.8.0")
 		if(IS_DIRECTORY "${CMAKE_SOURCE_DIRECTORY}/.git")
-			find_program(DASHBOARDSCRIPT_GIT_EXECUTABLE NAMES git)
+			find_program(DASHBOARDSCRIPT_GIT_EXECUTABLE NAMES git git.cmd)
 			if(DASHBOARDSCRIPT_GIT_EXECUTABLE)
 
 				set(UPDATE_TYPE "git")
@@ -165,6 +165,12 @@ function(create_dashboard_scripts)
 		endif()
 
 		set(_msg)
+		
+		if(NOT DASHBOARDSCRIPT_BUILD_CONFIGURATION)
+			set(DASHBOARDSCRIPT_BUILD_CONFIGURATION "RelWithDebInfo")
+		endif()
+		set(DASHBOARDSCRIPT_BUILD_CONFIGURATION "${DASHBOARDSCRIPT_BUILD_CONFIGURATION}" CACHE STRING "Build configuration to use for dashboard builds by default")
+		mark_as_advanced(DASHBOARDSCRIPT_BUILD_CONFIGURATION)
 
 		foreach(DASHBOARDSCRIPT_DASH_TYPE Nightly Continuous Experimental)
 			# If given a cache template, configure it
