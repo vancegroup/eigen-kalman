@@ -35,16 +35,12 @@ find_program(GDB_COMMAND
 	bin
 	libexec)
 
-if(GDB_COMMAND AND NOT GDB_VERSION)
+if(GDB_COMMAND)
 	execute_process(COMMAND gdb --version
 		COMMAND head -n 1
-		COMMAND sed -E 's/.*gdb ([^ ]*).*/\\1/'
-		OUTPUT_VARIABLE GDB_VERSION)
-	if(GDB_VERSION VERSION_LESS 6.4)
-		set(GDB_HAS_RETURN_CHILD_RESULT FALSE)
-	else()
-		set(GDB_HAS_RETURN_CHILD_RESULT TRUE)
-	endif()
+		COMMAND sed -r "s/[^0-9]*([0-9]+[0-9.]*).*/\\1/"
+		OUTPUT_VARIABLE GDB_VERSION
+		OUTPUT_STRIP_TRAILING_WHITESPACE)
 endif()
 
 # handle the QUIETLY and REQUIRED arguments and set xxx_FOUND to TRUE if
@@ -54,6 +50,11 @@ find_package_handle_standard_args(GDB DEFAULT_MSG GDB_COMMAND GDB_VERSION)
 
 if(GDB_FOUND)
 	mark_as_advanced(GDB_ROOT_DIR)
+	if(GDB_VERSION VERSION_LESS 6.4)
+		set(GDB_HAS_RETURN_CHILD_RESULT FALSE)
+	else()
+		set(GDB_HAS_RETURN_CHILD_RESULT TRUE)
+	endif()
 endif()
 
 mark_as_advanced(GDB_COMMAND)
