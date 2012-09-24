@@ -28,7 +28,7 @@ using namespace eigenkf;
 
 #define COL 10
 
-int main(int argc, char * argv[]) {
+int main(int /*argc*/, char * /*argv*/[]) {
 	std::srand(std::time(NULL));
 
 	/// We want a simple 2d state

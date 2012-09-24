@@ -139,7 +139,7 @@ void runWindow(std::vector<StatePair> const& data, double lowMVar, double highMV
 
 }
 
-int main(int argc, char * argv[]) {
+int main(int /*argc*/, char * /*argv*/[]) {
 
 	std::vector<StatePair> data = generateLineData();
 

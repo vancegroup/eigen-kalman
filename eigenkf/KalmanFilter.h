@@ -110,13 +110,13 @@ namespace eigenkf {
 				covariance(MatMeasMeas::Identity()) {}
 
 
-			MatMeasState const& getJacobian(StateType const& state) {
+			MatMeasState const& getJacobian(StateType const& /*state*/) {
 				return jacobian;
 			}
 
 			/// Measurement noise covariance, aka uncertainty
 			/// in measurement
-			MatMeasMeas const& getCovariance(StateType const& state) {
+			MatMeasMeas const& getCovariance(StateType const& /*state*/) {
 				return covariance;
 			}
 
