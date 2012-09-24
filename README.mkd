@@ -1,0 +1,46 @@
+# Eigen-Kalman
+
+<https://github.com/vancegroup/eigen-kalman>
+
+Classes to implement flexible Kalman-type filters using the great [Eigen
+matrix math template library][eigen]. Inspired by the design of the
+Kalman filters in the [TOON AlGorithms (TAG)][tag] library built on the
+[Tom's Object Oriented Numerics (TOON)][toon] matrix math library.
+
+[eigen]: http://eigen.tuxfamily.org
+[tag]: http://www.edwardrosten.com/cvd/tag.html
+[toon]: http://www.edwardrosten.com/cvd/toon.html
+
+## Requirements
+This is a single header, and only requires the availability of a 2.x
+(ancient by this writing!) or newer version of Eigen. Old snapshots are
+bundled with this repo for testing purposes, but use of newer versions
+is encouraged.
+
+Between the documentation in the header, and the sample programs in the
+main directory, you should hopefully be able to get the idea of how to
+use it. You might also see "glove-tools" for a sample "production" usage
+of this library.
+
+
+## Acknowledgement
+If you find this useful, we would appreciate hearing from you. If you
+use this for academic work, we would also appreciate a copy of the
+publication and a citation: this helps make a case for our work. You may
+contact the main developer, Ryan Pavlik (Iowa State University, Virtual
+Reality Applications Center), by email at <rpavlik@iastate.edu> or
+<abiryan@ryand.net>, or his advisor, Dr. Judy M. Vance, at
+<jmvance@iastate.edu>.
+
+Paper materials and copies of publications may be mailed to:
+
+> Ryan Pavlik
+>
+> Virtual Reality Applications Center
+>
+> 1620 Howe Hall
+>
+> Ames, Iowa 50011-2274
+>
+> USA
+
