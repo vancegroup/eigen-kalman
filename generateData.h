@@ -35,7 +35,7 @@ double noise(double noiseAmplitude = 3.0) {
 
 std::vector<StatePair> generateLineData(const double dt = 0.5, const double maxTime = 50.0, double noiseAmplitude = 3.0) {
 	std::vector<StatePair> ret;
-	for (double t = 0; t < maxTime; t+= dt) {
+	for (double t = 0; t < maxTime; t += dt) {
 		Eigen::Vector2d err;
 		err[0] = noise(noiseAmplitude);
 		err[1] = noise(noiseAmplitude);
@@ -49,15 +49,15 @@ std::vector<StatePair> generateLineData(const double dt = 0.5, const double maxT
 std::vector<StatePair> generateSineData(const double dt = 0.5, const double maxTime = 50.0, double noiseAmplitude = 3.0, double maxHeight = 10.0) {
 	std::vector<StatePair> ret;
 	const double timeScale = 3.141592653589 / maxTime;
-	for (double t = 0; t < maxTime; t+= dt) {
+	for (double t = 0; t < maxTime; t += dt) {
 		Eigen::Vector2d err;
 		err[0] = noise(noiseAmplitude);
 		err[1] = noise(noiseAmplitude);
-		
+
 		Eigen::Vector2d pos;
 		pos[0] = t;
 		pos[1] = std::sin(t * timeScale) * maxHeight;
-		
+
 		Eigen::Vector2d measurement(pos + err);
 		ret.push_back(StatePair(pos, measurement));
 	}

@@ -1,8 +1,8 @@
 /** @file KalmanFilter.h
 	@brief KalmanFilter classes using the Eigen math template library,
 	inspired by equivalent classes in TAG (using TooN for math)
-	
-	
+
+
 
 	@date 2010
 
@@ -23,12 +23,12 @@
 #include <Eigen/LU>
 
 #if EIGEN_VERSION_AT_LEAST(2, 9, 0)
-	// Eigen 3.0 series
+// Eigen 3.0 series
 #	define eikfLUType FullPivLU
 #	define eikfLUFunc fullPivLu
 
 #else
-	// Eigen 2.0.x
+// Eigen 2.0.x
 #	define eikfLUType LU
 #	define eikfLUFunc lu
 #endif
@@ -92,94 +92,94 @@ namespace eigenkf {
 
 	template<class StateType>
 	class AbsoluteMeasurement {
-	public:
-		static const int DIM = StateType::DIM;
-		typedef Eigen::Matrix<double, DIM, 1> VecMeas;
-		typedef Eigen::Matrix<double, DIM, 1> VecState;
-		typedef Eigen::Matrix<double, DIM, DIM> MatMeasMeas;
-		typedef Eigen::Matrix<double, DIM, DIM> MatMeasState;
+		public:
+			static const int DIM = StateType::DIM;
+			typedef Eigen::Matrix<double, DIM, 1> VecMeas;
+			typedef Eigen::Matrix<double, DIM, 1> VecState;
+			typedef Eigen::Matrix<double, DIM, DIM> MatMeasMeas;
+			typedef Eigen::Matrix<double, DIM, DIM> MatMeasState;
 
-		VecMeas measurement;
+			VecMeas measurement;
 
-		MatMeasState jacobian;
-		MatMeasMeas covariance;
+			MatMeasState jacobian;
+			MatMeasMeas covariance;
 
-		AbsoluteMeasurement() :
-			measurement(VecMeas::Zero()),
-			jacobian(MatMeasState::Identity()),
-			covariance(MatMeasMeas::Identity()) {}
+			AbsoluteMeasurement() :
+				measurement(VecMeas::Zero()),
+				jacobian(MatMeasState::Identity()),
+				covariance(MatMeasMeas::Identity()) {}
 
 
-		MatMeasState const& getJacobian(StateType const& state) {
-			return jacobian;
-		}
+			MatMeasState const& getJacobian(StateType const& state) {
+				return jacobian;
+			}
 
-		/// Measurement noise covariance, aka uncertainty
-		/// in measurement
-		MatMeasMeas const& getCovariance(StateType const& state) {
-			return covariance;
-		}
+			/// Measurement noise covariance, aka uncertainty
+			/// in measurement
+			MatMeasMeas const& getCovariance(StateType const& state) {
+				return covariance;
+			}
 
-		VecState const getInnovation(StateType const& state) {
-			return measurement - state.x;
-		}
+			VecState const getInnovation(StateType const& state) {
+				return measurement - state.x;
+			}
 
 	};
 
 	template<class StateType, class ProcessModelType>
 	class KalmanFilter {
 		public:
-		typedef Eigen::Matrix<double, StateType::DIM, StateType::DIM> MatStateState;
-		typedef Eigen::Matrix<double, StateType::DIM, 1> VecState;
+			typedef Eigen::Matrix<double, StateType::DIM, StateType::DIM> MatStateState;
+			typedef Eigen::Matrix<double, StateType::DIM, 1> VecState;
 
 
 
-		StateType state;
-		ProcessModelType processModel;
+			StateType state;
+			ProcessModelType processModel;
 
-		void predict(double dt) {
-			const MatStateState A(processModel.getJacobian(state, dt));
-			state.covariance = A * state.covariance * A.transpose() + processModel.getNoiseCovariance(dt);
-			/// @todo symmetrize?
-			processModel.updateState(state, dt);
-		}
-
-		template<class MeasurementType>
-		void correct(MeasurementType & m) {
-			typedef Eigen::Matrix<double, MeasurementType::DIM, StateType::DIM> MatMeasState;
-			typedef Eigen::Matrix<double, MeasurementType::DIM, MeasurementType::DIM> MatMeasMeas;
-			typedef Eigen::Matrix<double, MeasurementType::DIM, 1> VecMeas;
-			/// @todo implement
-			const MatMeasState & H = m.getJacobian(state);
-			const MatMeasMeas & R = m.getCovariance(state);
-			const VecState innovation = m.getInnovation(state);
-			const MatMeasMeas S = H * state.covariance * H.transpose() + R;
-		/*
-			Eigen::LDLT<MatMeasMeas> ldltOfS = S.ldlt();
-
-			bool result = ldltOfS.solve(state.covariance * H.transpose(), &K);
-			if (!result) {
-				throw new std::runtime_error("cholesky failed!");
+			void predict(double dt) {
+				const MatStateState A(processModel.getJacobian(state, dt));
+				state.covariance = A * state.covariance * A.transpose() + processModel.getNoiseCovariance(dt);
+				/// @todo symmetrize?
+				processModel.updateState(state, dt);
 			}
-			Matrix covCorrection;
-			if (!ldltOfS.solve(state.covariance * H.transpose(), & covCorrection)) {
-				throw new std::runtime_error("First ldlt failed!");
+
+			template<class MeasurementType>
+			void correct(MeasurementType & m) {
+				typedef Eigen::Matrix<double, MeasurementType::DIM, StateType::DIM> MatMeasState;
+				typedef Eigen::Matrix<double, MeasurementType::DIM, MeasurementType::DIM> MatMeasMeas;
+				typedef Eigen::Matrix<double, MeasurementType::DIM, 1> VecMeas;
+				/// @todo implement
+				const MatMeasState & H = m.getJacobian(state);
+				const MatMeasMeas & R = m.getCovariance(state);
+				const VecState innovation = m.getInnovation(state);
+				const MatMeasMeas S = H * state.covariance * H.transpose() + R;
+				/*
+					Eigen::LDLT<MatMeasMeas> ldltOfS = S.ldlt();
+
+					bool result = ldltOfS.solve(state.covariance * H.transpose(), &K);
+					if (!result) {
+						throw new std::runtime_error("cholesky failed!");
+					}
+					Matrix covCorrection;
+					if (!ldltOfS.solve(state.covariance * H.transpose(), & covCorrection)) {
+						throw new std::runtime_error("First ldlt failed!");
+					}
+					state.covariance -= covCorrection;
+
+					Matrix stateInnovPart;
+					if (!ldltOfS.solve(innovation, &stateInnovPart)) {
+						throw new std::runtime_error("Second ldlt failed!");
+					}
+					 processModel.updateFromMeasurement(state, state.covariance * H.transpose() * stateInnovPart);
+
+					 */
+				Eigen::eikfLUType<MatMeasMeas> luOfS = S.eikfLUFunc();
+				MatStateState K = state.covariance * H.transpose() * luOfS.inverse();
+				processModel.updateFromMeasurement(state, K * innovation);
+				state.covariance = (MatStateState::Identity() - K * H) * state.covariance;
+
 			}
-			state.covariance -= covCorrection;
-
-			Matrix stateInnovPart;
-			if (!ldltOfS.solve(innovation, &stateInnovPart)) {
-				throw new std::runtime_error("Second ldlt failed!");
-			}
-			 processModel.updateFromMeasurement(state, state.covariance * H.transpose() * stateInnovPart);
-
-			 */
-			Eigen::eikfLUType<MatMeasMeas> luOfS = S.eikfLUFunc();
-			MatStateState K = state.covariance * H.transpose() * luOfS.inverse();
-			processModel.updateFromMeasurement(state, K * innovation);
-			state.covariance = (MatStateState::Identity() - K*H)*state.covariance;
-
-		}
 
 
 	};
