@@ -31,13 +31,13 @@
   * \brief Pseudo expression to manipulate a triangular sparse matrix as a selfadjoint matrix.
   *
   * \param MatrixType the type of the dense matrix storing the coefficients
-  * \param UpLo can be either \c Lower or \c Upper
+  * \param UpLo can be either \c #Lower or \c #Upper
   *
   * This class is an expression of a sefladjoint matrix from a triangular part of a matrix
   * with given dense storage of the coefficients. It is the return type of MatrixBase::selfadjointView()
   * and most of the time this is the only way that it is used.
   *
-  * \sa SparseMatrixBase::selfAdjointView()
+  * \sa SparseMatrixBase::selfadjointView()
   */
 template<typename Lhs, typename Rhs, int UpLo>
 class SparseSelfAdjointTimeDenseProduct;
@@ -75,7 +75,6 @@ template<typename MatrixType, unsigned int UpLo> class SparseSelfAdjointView
 
     inline SparseSelfAdjointView(const MatrixType& matrix) : m_matrix(matrix)
     {
-      eigen_assert(internal::are_flags_consistent<UpLo>::ret);
       eigen_assert(rows()==cols() && "SelfAdjointView is only for squared matrices");
     }
 
@@ -368,6 +367,7 @@ void permute_symm_to_symm(const MatrixType& mat, SparseMatrix<typename MatrixTyp
   typedef SparseMatrix<Scalar,DestOrder,Index> Dest;
   Dest& dest(_dest.derived());
   typedef Matrix<Index,Dynamic,1> VectorI;
+  //internal::conj_if<SrcUpLo!=DstUpLo> cj;
   
   Index size = mat.rows();
   VectorI count(size);
@@ -383,7 +383,7 @@ void permute_symm_to_symm(const MatrixType& mat, SparseMatrix<typename MatrixTyp
         continue;
                   
       Index ip = perm ? perm[i] : i;
-      count[DstUpLo==Lower ? std::min(ip,jp) : std::max(ip,jp)]++;
+      count[DstUpLo==Lower ? (std::min)(ip,jp) : (std::max)(ip,jp)]++;
     }
   }
   dest._outerIndexPtr()[0] = 0;
@@ -403,9 +403,13 @@ void permute_symm_to_symm(const MatrixType& mat, SparseMatrix<typename MatrixTyp
         continue;
                   
       Index ip = perm? perm[i] : i;
-      Index k = count[DstUpLo==Lower ? std::min(ip,jp) : std::max(ip,jp)]++;
-      dest._innerIndexPtr()[k] = DstUpLo==Lower ? std::max(ip,jp) : std::min(ip,jp);
-      dest._valuePtr()[k] = it.value();
+      Index k = count[DstUpLo==Lower ? (std::min)(ip,jp) : (std::max)(ip,jp)]++;
+      dest._innerIndexPtr()[k] = DstUpLo==Lower ? (std::max)(ip,jp) : (std::min)(ip,jp);
+      
+      if((DstUpLo==Lower && ip<jp) || (DstUpLo==Upper && ip>jp))
+        dest._valuePtr()[k] = conj(it.value());
+      else
+        dest._valuePtr()[k] = it.value();
     }
   }
 }

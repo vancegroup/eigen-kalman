@@ -64,7 +64,7 @@ public:
     template<typename T0, typename T1>
         NumericalDiff(const T0& a0, const T1& a1) : Functor(a0, a1), epsfcn(0) {}
     template<typename T0, typename T1, typename T2>
-        NumericalDiff(const T0& a0, const T1& a1, const T1& a2) : Functor(a0, a1, a2), epsfcn(0) {}
+        NumericalDiff(const T0& a0, const T1& a1, const T2& a2) : Functor(a0, a1, a2), epsfcn(0) {}
 
     enum {
         InputsAtCompileTime = Functor::InputsAtCompileTime,
@@ -80,7 +80,7 @@ public:
         Scalar h;
         int nfev=0;
         const typename InputType::Index n = _x.size();
-        const Scalar eps = internal::sqrt((std::max(epsfcn,NumTraits<Scalar>::epsilon() )));
+        const Scalar eps = internal::sqrt(((std::max)(epsfcn,NumTraits<Scalar>::epsilon() )));
         ValueType val1, val2;
         InputType x = _x;
         // TODO : we should do this only if the size is not already known

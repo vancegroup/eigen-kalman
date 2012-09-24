@@ -34,7 +34,10 @@
   * This class is the base that is inherited by all dense objects (matrix, vector, arrays,
   * and related expression types). The common Eigen API for dense objects is contained in this class.
   *
-  * \param Derived is the derived type, e.g., a matrix type or an expression.
+  * \tparam Derived is the derived type, e.g., a matrix type or an expression.
+  *
+  * This class can be extended with the help of the plugin mechanism described on the page
+  * \ref TopicCustomizingEigen by defining the preprocessor symbol \c EIGEN_DENSEBASE_PLUGIN.
   *
   * \sa \ref TopicClassHierarchy
   */
@@ -53,7 +56,13 @@ template<typename Derived> class DenseBase
     class InnerIterator;
 
     typedef typename internal::traits<Derived>::StorageKind StorageKind;
-    typedef typename internal::traits<Derived>::Index Index; /**< The type of indices */
+
+    /** \brief The type of indices 
+      * \details To change this, \c \#define the preprocessor symbol \c EIGEN_DEFAULT_DENSE_INDEX_TYPE.
+      * \sa \ref TopicPreprocessorDirectives.
+      */
+    typedef typename internal::traits<Derived>::Index Index; 
+
     typedef typename internal::traits<Derived>::Scalar Scalar;
     typedef typename internal::packet_traits<Scalar>::type PacketScalar;
     typedef typename NumTraits<Scalar>::Real RealScalar;
@@ -160,8 +169,8 @@ template<typename Derived> class DenseBase
 
       IsRowMajor = int(Flags) & RowMajorBit, /**< True if this expression has row-major storage order. */
 
-      InnerSizeAtCompileTime = int(IsVectorAtCompileTime) ? SizeAtCompileTime
-                             : int(IsRowMajor) ? ColsAtCompileTime : RowsAtCompileTime,
+      InnerSizeAtCompileTime = int(IsVectorAtCompileTime) ? int(SizeAtCompileTime)
+                             : int(IsRowMajor) ? int(ColsAtCompileTime) : int(RowsAtCompileTime),
 
       CoeffReadCost = internal::traits<Derived>::CoeffReadCost,
         /**< This is a rough measure of how expensive it is to read one coefficient from
@@ -171,6 +180,8 @@ template<typename Derived> class DenseBase
       InnerStrideAtCompileTime = internal::inner_stride_at_compile_time<Derived>::ret,
       OuterStrideAtCompileTime = internal::outer_stride_at_compile_time<Derived>::ret
     };
+
+    enum { ThisConstantIsPrivateInPlainObjectBase };
 
     /** \returns the number of nonzero coefficients which is in practice the number
       * of stored coefficients. */
@@ -183,8 +194,8 @@ template<typename Derived> class DenseBase
     /** \returns the outer size.
       *
       * \note For a vector, this returns just 1. For a matrix (non-vector), this is the major dimension
-      * with respect to the storage order, i.e., the number of columns for a column-major matrix,
-      * and the number of rows for a row-major matrix. */
+      * with respect to the \ref TopicStorageOrders "storage order", i.e., the number of columns for a
+      * column-major matrix, and the number of rows for a row-major matrix. */
     Index outerSize() const
     {
       return IsVectorAtCompileTime ? 1
@@ -194,8 +205,8 @@ template<typename Derived> class DenseBase
     /** \returns the inner size.
       *
       * \note For a vector, this is just the size. For a matrix (non-vector), this is the minor dimension
-      * with respect to the storage order, i.e., the number of rows for a column-major matrix,
-      * and the number of columns for a row-major matrix. */
+      * with respect to the \ref TopicStorageOrders "storage order", i.e., the number of rows for a 
+      * column-major matrix, and the number of columns for a row-major matrix. */
     Index innerSize() const
     {
       return IsVectorAtCompileTime ? this->size()
@@ -273,7 +284,8 @@ template<typename Derived> class DenseBase
     CommaInitializer<Derived> operator<< (const DenseBase<OtherDerived>& other);
 
     Eigen::Transpose<Derived> transpose();
-    const Eigen::Transpose<Derived> transpose() const;
+    typedef const Transpose<const Derived> ConstTransposeReturnType;
+    ConstTransposeReturnType transpose() const;
     void transposeInPlace();
 #ifndef EIGEN_NO_DEBUG
   protected:
@@ -282,41 +294,29 @@ template<typename Derived> class DenseBase
   public:
 #endif
 
-    VectorBlock<Derived> segment(Index start, Index size);
-    const VectorBlock<Derived> segment(Index start, Index size) const;
+    typedef VectorBlock<Derived> SegmentReturnType;
+    typedef const VectorBlock<const Derived> ConstSegmentReturnType;
+    template<int Size> struct FixedSegmentReturnType { typedef VectorBlock<Derived, Size> Type; };
+    template<int Size> struct ConstFixedSegmentReturnType { typedef const VectorBlock<const Derived, Size> Type; };
+    
+    // Note: The "DenseBase::" prefixes are added to help MSVC9 to match these declarations with the later implementations.
+    SegmentReturnType segment(Index start, Index size);
+    typename DenseBase::ConstSegmentReturnType segment(Index start, Index size) const;
 
-    VectorBlock<Derived> head(Index size);
-    const VectorBlock<Derived> head(Index size) const;
+    SegmentReturnType head(Index size);
+    typename DenseBase::ConstSegmentReturnType head(Index size) const;
 
-    VectorBlock<Derived> tail(Index size);
-    const VectorBlock<Derived> tail(Index size) const;
+    SegmentReturnType tail(Index size);
+    typename DenseBase::ConstSegmentReturnType tail(Index size) const;
 
-    template<int Size> VectorBlock<Derived,Size> head(void);
-    template<int Size> const VectorBlock<Derived,Size> head() const;
+    template<int Size> typename FixedSegmentReturnType<Size>::Type head();
+    template<int Size> typename ConstFixedSegmentReturnType<Size>::Type head() const;
 
-    template<int Size> VectorBlock<Derived,Size> tail();
-    template<int Size> const VectorBlock<Derived,Size> tail() const;
+    template<int Size> typename FixedSegmentReturnType<Size>::Type tail();
+    template<int Size> typename ConstFixedSegmentReturnType<Size>::Type tail() const;
 
-    template<int Size> VectorBlock<Derived,Size> segment(Index start);
-    template<int Size> const VectorBlock<Derived,Size> segment(Index start) const;
-
-    Diagonal<Derived,0> diagonal();
-    const Diagonal<Derived,0> diagonal() const;
-
-    template<int Index> Diagonal<Derived,Index> diagonal();
-    template<int Index> const Diagonal<Derived,Index> diagonal() const;
-
-    Diagonal<Derived, Dynamic> diagonal(Index index);
-    const Diagonal<Derived, Dynamic> diagonal(Index index) const;
-
-    template<unsigned int Mode> TriangularView<Derived, Mode> part();
-    template<unsigned int Mode> const TriangularView<Derived, Mode> part() const;
-
-    template<unsigned int Mode> TriangularView<Derived, Mode> triangularView();
-    template<unsigned int Mode> const TriangularView<Derived, Mode> triangularView() const;
-
-    template<unsigned int UpLo> SelfAdjointView<Derived, UpLo> selfadjointView();
-    template<unsigned int UpLo> const SelfAdjointView<Derived, UpLo> selfadjointView() const;
+    template<int Size> typename FixedSegmentReturnType<Size>::Type segment(Index start);
+    template<int Size> typename ConstFixedSegmentReturnType<Size>::Type segment(Index start) const;
 
     static const ConstantReturnType
     Constant(Index rows, Index cols, const Scalar& value);
@@ -389,8 +389,25 @@ template<typename Derived> class DenseBase
       return typename internal::eval<Derived>::type(derived());
     }
 
+    /** swaps *this with the expression \a other.
+      *
+      */
     template<typename OtherDerived>
-    void swap(DenseBase<OtherDerived> EIGEN_REF_TO_TEMPORARY other);
+    void swap(const DenseBase<OtherDerived>& other,
+              int = OtherDerived::ThisConstantIsPrivateInPlainObjectBase)
+    {
+      SwapWrapper<Derived>(derived()).lazyAssign(other.derived());
+    }
+
+    /** swaps *this with the matrix or array \a other.
+      *
+      */
+    template<typename OtherDerived>
+    void swap(PlainObjectBase<OtherDerived>& other)
+    {
+      SwapWrapper<Derived>(derived()).lazyAssign(other.derived());
+    }
+
 
     inline const NestByValue<Derived> nestByValue() const;
     inline const ForceAlignedAccess<Derived> forceAlignedAccess() const;
@@ -407,11 +424,14 @@ template<typename Derived> class DenseBase
     typename internal::traits<Derived>::Scalar minCoeff() const;
     typename internal::traits<Derived>::Scalar maxCoeff() const;
 
-    typename internal::traits<Derived>::Scalar minCoeff(Index* row, Index* col) const;
-    typename internal::traits<Derived>::Scalar maxCoeff(Index* row, Index* col) const;
-
-    typename internal::traits<Derived>::Scalar minCoeff(Index* index) const;
-    typename internal::traits<Derived>::Scalar maxCoeff(Index* index) const;
+    template<typename IndexType>
+    typename internal::traits<Derived>::Scalar minCoeff(IndexType* row, IndexType* col) const;
+    template<typename IndexType>
+    typename internal::traits<Derived>::Scalar maxCoeff(IndexType* row, IndexType* col) const;
+    template<typename IndexType>
+    typename internal::traits<Derived>::Scalar minCoeff(IndexType* index) const;
+    template<typename IndexType>
+    typename internal::traits<Derived>::Scalar maxCoeff(IndexType* index) const;
 
     template<typename BinaryOp>
     typename internal::result_of<BinaryOp(typename internal::traits<Derived>::Scalar)>::type
@@ -436,10 +456,15 @@ template<typename Derived> class DenseBase
     bool any(void) const;
     Index count() const;
 
-    const VectorwiseOp<Derived,Horizontal> rowwise() const;
-    VectorwiseOp<Derived,Horizontal> rowwise();
-    const VectorwiseOp<Derived,Vertical> colwise() const;
-    VectorwiseOp<Derived,Vertical> colwise();
+    typedef VectorwiseOp<Derived, Horizontal> RowwiseReturnType;
+    typedef const VectorwiseOp<const Derived, Horizontal> ConstRowwiseReturnType;
+    typedef VectorwiseOp<Derived, Vertical> ColwiseReturnType;
+    typedef const VectorwiseOp<const Derived, Vertical> ConstColwiseReturnType;
+
+    ConstRowwiseReturnType rowwise() const;
+    RowwiseReturnType rowwise();
+    ConstColwiseReturnType colwise() const;
+    ColwiseReturnType colwise();
 
     static const CwiseNullaryOp<internal::scalar_random_op<Scalar>,Derived> Random(Index rows, Index cols);
     static const CwiseNullaryOp<internal::scalar_random_op<Scalar>,Derived> Random(Index size);
@@ -464,8 +489,10 @@ template<typename Derived> class DenseBase
     const Replicate<Derived,RowFactor,ColFactor> replicate() const;
     const Replicate<Derived,Dynamic,Dynamic> replicate(Index rowFacor,Index colFactor) const;
 
-    Eigen::Reverse<Derived, BothDirections> reverse();
-    const Eigen::Reverse<Derived, BothDirections> reverse() const;
+    typedef Reverse<Derived, BothDirections> ReverseReturnType;
+    typedef const Reverse<const Derived, BothDirections> ConstReverseReturnType;
+    ReverseReturnType reverse();
+    ConstReverseReturnType reverse() const;
     void reverseInPlace();
 
 #define EIGEN_CURRENT_STORAGE_BASE_CLASS Eigen::DenseBase
@@ -501,8 +528,6 @@ template<typename Derived> class DenseBase
        * Only do it when debugging Eigen, as this borders on paranoiac and could slow compilation down
        */
 #ifdef EIGEN_INTERNAL_DEBUGGING
-      EIGEN_STATIC_ASSERT(internal::are_flags_consistent<Flags>::ret,
-                          INVALID_MATRIXBASE_TEMPLATE_PARAMETERS)
       EIGEN_STATIC_ASSERT((EIGEN_IMPLIES(MaxRowsAtCompileTime==1 && MaxColsAtCompileTime!=1, int(IsRowMajor))
                         && EIGEN_IMPLIES(MaxColsAtCompileTime==1 && MaxRowsAtCompileTime!=1, int(!IsRowMajor))),
                           INVALID_STORAGE_ORDER_FOR_THIS_VECTOR_EXPRESSION)

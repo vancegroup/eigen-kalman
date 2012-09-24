@@ -5,17 +5,20 @@ cmake_minimum_required(VERSION 2.6.2)
 # guard against in-source builds
 
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
-  message(FATAL_ERROR "In-source builds not allowed. Please make a new directory (called a build directory) and run CMake from there. (you may need to remove CMakeCache.txt ")
+  message(FATAL_ERROR "In-source builds not allowed. Please make a new directory (called a build directory) and run CMake from there. You may need to remove CMakeCache.txt. ")
 endif()
 
 # guard against bad build-type strings
 
+if (NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE "Release")
+endif()
+
 string(TOLOWER "${CMAKE_BUILD_TYPE}" cmake_build_type_tolower)
 if(    NOT cmake_build_type_tolower STREQUAL "debug"
    AND NOT cmake_build_type_tolower STREQUAL "release"
-   AND NOT cmake_build_type_tolower STREQUAL "relwithdebinfo"
-   AND NOT cmake_build_type_tolower STREQUAL "")
-  message(FATAL_ERROR "Unknown build type \"${CMAKE_BUILD_TYPE}\". Allowed values are Debug, Release, RelWithDebInfo  and \"\" (case-insensitive).")
+   AND NOT cmake_build_type_tolower STREQUAL "relwithdebinfo")
+  message(FATAL_ERROR "Unknown build type \"${CMAKE_BUILD_TYPE}\". Allowed values are Debug, Release, RelWithDebInfo (case-insensitive).")
 endif()
 
 
@@ -24,7 +27,7 @@ endif()
 #############################################################################
 
 # automatically parse the version number
-file(READ "${CMAKE_SOURCE_DIR}/Eigen/src/Core/util/Macros.h" _eigen_version_header)
+file(READ "${PROJECT_SOURCE_DIR}/Eigen/src/Core/util/Macros.h" _eigen_version_header)
 string(REGEX MATCH "define[ \t]+EIGEN_WORLD_VERSION[ \t]+([0-9]+)" _eigen_world_version_match "${_eigen_version_header}")
 set(EIGEN_WORLD_VERSION "${CMAKE_MATCH_1}")
 string(REGEX MATCH "define[ \t]+EIGEN_MAJOR_VERSION[ \t]+([0-9]+)" _eigen_major_version_match "${_eigen_version_header}")
@@ -91,17 +94,14 @@ endif(NOT WIN32)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-string(TOLOWER "${CMAKE_GENERATOR}" cmake_generator_tolower)
-if(cmake_generator_tolower MATCHES "makefile" AND NOT MSVC_IDE)
-  option(EIGEN_SPLIT_LARGE_TESTS "Split large tests into smaller executables" ON)
-else()
-  option(EIGEN_SPLIT_LARGE_TESTS "Split large tests into smaller executables" OFF)
-endif()
+option(EIGEN_SPLIT_LARGE_TESTS "Split large tests into smaller executables" ON)
 
 option(EIGEN_DEFAULT_TO_ROW_MAJOR "Use row-major as default matrix storage order" OFF)
 if(EIGEN_DEFAULT_TO_ROW_MAJOR)
   add_definitions("-DEIGEN_DEFAULT_TO_ROW_MAJOR")
 endif()
+
+add_definitions("-DEIGEN_PERMANENTLY_DISABLE_STUPID_WARNINGS")
 
 if(CMAKE_COMPILER_IS_GNUCXX)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wnon-virtual-dtor -Wno-long-long -ansi -Wundef -Wcast-align -Wchar-subscripts -Wall -W -Wpointer-arith -Wwrite-strings -Wformat-security -fexceptions -fno-check-new -fno-common -fstrict-aliasing")
@@ -123,43 +123,43 @@ if(CMAKE_COMPILER_IS_GNUCXX)
   option(EIGEN_TEST_SSE2 "Enable/Disable SSE2 in tests/examples" OFF)
   if(EIGEN_TEST_SSE2)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse2")
-    message("Enabling SSE2 in tests/examples")
+    message(STATUS "Enabling SSE2 in tests/examples")
   endif()
 
   option(EIGEN_TEST_SSE3 "Enable/Disable SSE3 in tests/examples" OFF)
   if(EIGEN_TEST_SSE3)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse3")
-    message("Enabling SSE3 in tests/examples")
+    message(STATUS "Enabling SSE3 in tests/examples")
   endif()
 
   option(EIGEN_TEST_SSSE3 "Enable/Disable SSSE3 in tests/examples" OFF)
   if(EIGEN_TEST_SSSE3)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mssse3")
-    message("Enabling SSSE3 in tests/examples")
+    message(STATUS "Enabling SSSE3 in tests/examples")
   endif()
 
   option(EIGEN_TEST_SSE4_1 "Enable/Disable SSE4.1 in tests/examples" OFF)
   if(EIGEN_TEST_SSE4_1)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.1")
-    message("Enabling SSE4.1 in tests/examples")
+    message(STATUS "Enabling SSE4.1 in tests/examples")
   endif()
 
   option(EIGEN_TEST_SSE4_2 "Enable/Disable SSE4.2 in tests/examples" OFF)
   if(EIGEN_TEST_SSE4_2)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2")
-    message("Enabling SSE4.2 in tests/examples")
+    message(STATUS "Enabling SSE4.2 in tests/examples")
   endif()
 
   option(EIGEN_TEST_ALTIVEC "Enable/Disable AltiVec in tests/examples" OFF)
   if(EIGEN_TEST_ALTIVEC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -maltivec -mabi=altivec")
-    message("Enabling AltiVec in tests/examples")
+    message(STATUS "Enabling AltiVec in tests/examples")
   endif()
 
   option(EIGEN_TEST_NEON "Enable/Disable Neon in tests/examples" OFF)
   if(EIGEN_TEST_NEON)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mfloat-abi=hard -mfpu=neon -mcpu=cortex-a8")
-    message("Enabling NEON in tests/examples")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mfloat-abi=softfp -mfpu=neon -mcpu=cortex-a8")
+    message(STATUS "Enabling NEON in tests/examples")
   endif()
 
   check_cxx_compiler_flag("-fopenmp" COMPILER_SUPPORT_OPENMP)
@@ -167,7 +167,7 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     option(EIGEN_TEST_OPENMP "Enable/Disable OpenMP in tests/examples" OFF)
     if(EIGEN_TEST_OPENMP)
       set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
-      message("Enabling OpenMP in tests/examples")
+      message(STATUS "Enabling OpenMP in tests/examples")
     endif()
   endif()
 
@@ -191,7 +191,7 @@ if(MSVC)
     option(EIGEN_TEST_OPENMP "Enable/Disable OpenMP in tests/examples" OFF)
     if(EIGEN_TEST_OPENMP)
       set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /openmp")
-      message("Enabling OpenMP in tests/examples")
+      message(STATUS "Enabling OpenMP in tests/examples")
     endif()
   endif()
 
@@ -201,32 +201,42 @@ if(MSVC)
       # arch is not supported on 64 bit systems, SSE is enabled automatically.
       set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:SSE2")
     endif(NOT CMAKE_CL_64)
-    message("Enabling SSE2 in tests/examples")
+    message(STATUS "Enabling SSE2 in tests/examples")
   endif(EIGEN_TEST_SSE2)
 endif(MSVC)
 
 option(EIGEN_TEST_NO_EXPLICIT_VECTORIZATION "Disable explicit vectorization in tests/examples" OFF)
 option(EIGEN_TEST_X87 "Force using X87 instructions. Implies no vectorization." OFF)
+option(EIGEN_TEST_32BIT "Force generating 32bit code." OFF)
 
 if(EIGEN_TEST_X87)
   set(EIGEN_TEST_NO_EXPLICIT_VECTORIZATION ON)
   if(CMAKE_COMPILER_IS_GNUCXX)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mfpmath=387")
-    message("Forcing use of x87 instructions in tests/examples")
+    message(STATUS "Forcing use of x87 instructions in tests/examples")
   else()
-    message("EIGEN_TEST_X87 ignored on your compiler")
+    message(STATUS "EIGEN_TEST_X87 ignored on your compiler")
+  endif()
+endif()
+
+if(EIGEN_TEST_32BIT)
+  if(CMAKE_COMPILER_IS_GNUCXX)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m32")
+    message(STATUS "Forcing generation of 32-bit code in tests/examples")
+  else()
+    message(STATUS "EIGEN_TEST_32BIT ignored on your compiler")
   endif()
 endif()
 
 if(EIGEN_TEST_NO_EXPLICIT_VECTORIZATION)
   add_definitions(-DEIGEN_DONT_VECTORIZE=1)
-  message("Disabling vectorization in tests/examples")
+  message(STATUS "Disabling vectorization in tests/examples")
 endif()
 
 option(EIGEN_TEST_NO_EXPLICIT_ALIGNMENT "Disable explicit alignment (hence vectorization) in tests/examples" OFF)
 if(EIGEN_TEST_NO_EXPLICIT_ALIGNMENT)
   add_definitions(-DEIGEN_DONT_ALIGN=1)
-  message("Disabling alignment in tests/examples")
+  message(STATUS "Disabling alignment in tests/examples")
 endif()
 
 option(EIGEN_TEST_C++0x "Enables all C++0x features." OFF)
@@ -269,9 +279,21 @@ install(FILES
   )
 
 if(EIGEN_BUILD_PKGCONFIG)
+    SET(path_separator ":")
+    STRING(REPLACE ${path_separator} ";" pkg_config_libdir_search "$ENV{PKG_CONFIG_LIBDIR}")
+    message(STATUS "searching for 'pkgconfig' directory in PKG_CONFIG_LIBDIR ( $ENV{PKG_CONFIG_LIBDIR} ), ${CMAKE_INSTALL_PREFIX}/share, and ${CMAKE_INSTALL_PREFIX}/lib")
+    FIND_PATH(pkg_config_libdir pkgconfig ${pkg_config_libdir_search} ${CMAKE_INSTALL_PREFIX}/share ${CMAKE_INSTALL_PREFIX}/lib ${pkg_config_libdir_search})
+    if(pkg_config_libdir)
+        SET(pkg_config_install_dir ${pkg_config_libdir})
+        message(STATUS "found ${pkg_config_libdir}/pkgconfig" )
+    else(pkg_config_libdir)
+        SET(pkg_config_install_dir ${CMAKE_INSTALL_PREFIX}/share)
+        message(STATUS "pkgconfig not found; installing in ${pkg_config_install_dir}" )
+    endif(pkg_config_libdir)
+
     configure_file(eigen3.pc.in eigen3.pc)
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/eigen3.pc
-        DESTINATION share/pkgconfig
+        DESTINATION ${pkg_config_install_dir}/pkgconfig
         )
 endif(EIGEN_BUILD_PKGCONFIG)
 
@@ -279,10 +301,45 @@ add_subdirectory(Eigen)
 
 add_subdirectory(doc EXCLUDE_FROM_ALL)
 
+add_custom_target(buildtests)
+add_custom_target(check COMMAND "ctest")
+add_dependencies(check buildtests)
+
+# CMake/Ctest does not allow us to change the build command,
+# so we have to workaround by directly editing the generated DartConfiguration.tcl file
+# save CMAKE_MAKE_PROGRAM
+set(CMAKE_MAKE_PROGRAM_SAVE ${CMAKE_MAKE_PROGRAM})
+# and set a fake one
+set(CMAKE_MAKE_PROGRAM "@EIGEN_MAKECOMMAND_PLACEHOLDER@")
+
 include(CTest)
 enable_testing() # must be called from the root CMakeLists, see man page
 include(EigenTesting)
 ei_init_testing()
+
+# overwrite default DartConfiguration.tcl
+# The worarounds are different for each version of the MSVC IDE
+if(MSVC_IDE)
+  if(MSVC_VERSION EQUAL 1600) # MSVC 2010
+    set(EIGEN_MAKECOMMAND_PLACEHOLDER "${CMAKE_MAKE_PROGRAM_SAVE} buildtests.vcxproj /p:Configuration=\${CTEST_CONFIGURATION_TYPE} \n # ")
+  else() # MSVC 2008 (TODO check MSVC 2005)
+    set(EIGEN_MAKECOMMAND_PLACEHOLDER "${CMAKE_MAKE_PROGRAM_SAVE} /project buildtests")
+  endif()
+else()
+  # for make and nmake
+  set(EIGEN_MAKECOMMAND_PLACEHOLDER "${CMAKE_MAKE_PROGRAM_SAVE} buildtests")
+endif()
+
+configure_file(${CMAKE_BINARY_DIR}/DartConfiguration.tcl ${CMAKE_BINARY_DIR}/DartConfiguration.tcl)
+# restore default CMAKE_MAKE_PROGRAM
+set(CMAKE_MAKE_PROGRAM ${CMAKE_MAKE_PROGRAM_SAVE})
+# un-set temporary variables so that it is like they never existed.
+# CMake 2.6.3 introduces the more logical unset() syntax for this.
+set(CMAKE_MAKE_PROGRAM_SAVE)
+set(EIGEN_MAKECOMMAND_PLACEHOLDER)
+
+configure_file(${CMAKE_SOURCE_DIR}/CTestCustom.cmake.in ${CMAKE_BINARY_DIR}/CTestCustom.cmake)
+
 
 if(EIGEN_LEAVE_TEST_IN_ALL_TARGET)
   add_subdirectory(test) # can't do EXCLUDE_FROM_ALL here, breaks CTest
@@ -290,11 +347,19 @@ else()
   add_subdirectory(test EXCLUDE_FROM_ALL)
 endif()
 
+if(NOT MSVC)
+  if(EIGEN_LEAVE_TEST_IN_ALL_TARGET)
+    add_subdirectory(blas)
+    add_subdirectory(lapack)
+  else()
+    add_subdirectory(blas EXCLUDE_FROM_ALL)
+    add_subdirectory(lapack EXCLUDE_FROM_ALL)
+  endif()
+endif(NOT MSVC)
+
 add_subdirectory(unsupported)
 
 add_subdirectory(demos EXCLUDE_FROM_ALL)
-
-add_subdirectory(blas EXCLUDE_FROM_ALL)
 
 # must be after test and unsupported, for configuring buildtests.in
 add_subdirectory(scripts EXCLUDE_FROM_ALL)
@@ -306,29 +371,35 @@ endif(EIGEN_BUILD_BTL)
 
 ei_testing_print_summary()
 
-message("")
-message("Configured Eigen ${EIGEN_VERSION_NUMBER}")
-message("")
+message(STATUS "")
+message(STATUS "Configured Eigen ${EIGEN_VERSION_NUMBER}")
+message(STATUS "")
 
-if(cmake_generator_tolower MATCHES "makefile")
-  message("Some things you can do now:")
-  message("--------------+----------------------------------------------------------------")
-  message("Command       |   Description")
-  message("--------------+----------------------------------------------------------------")
-  message("make install  | Install to ${CMAKE_INSTALL_PREFIX}. To change that:")
-  message("              |     cmake . -DCMAKE_INSTALL_PREFIX=yourpath")
-  message("              |   Eigen headers will then be installed to:")
-  message("              |     ${INCLUDE_INSTALL_DIR}")
-  message("              |   To install Eigen headers to a separate location, do:")
-  message("              |     cmake . -DEIGEN_INCLUDE_INSTALL_DIR=yourpath")
-  message("make doc      | Generate the API documentation, requires Doxygen & LaTeX")
-  message("make check    | Build and run the unit-tests. Read this page:")
-  message("              |   http://eigen.tuxfamily.org/index.php?title=Tests")
-  message("make blas     | Build BLAS library (not the same thing as Eigen)")
-  message("--------------+----------------------------------------------------------------")
-else()
-  message("To build/run the unit tests, read this page:")
-  message("  http://eigen.tuxfamily.org/index.php?title=Tests")
+option(EIGEN_FAILTEST "Enable failtests." OFF)
+if(EIGEN_FAILTEST)
+  add_subdirectory(failtest)
 endif()
 
-message("")
+string(TOLOWER "${CMAKE_GENERATOR}" cmake_generator_tolower)
+if(cmake_generator_tolower MATCHES "makefile")
+  message(STATUS "Some things you can do now:")
+  message(STATUS "--------------+--------------------------------------------------------------")
+  message(STATUS "Command       |   Description")
+  message(STATUS "--------------+--------------------------------------------------------------")
+  message(STATUS "make install  | Install to ${CMAKE_INSTALL_PREFIX}. To change that:")
+  message(STATUS "              |     cmake . -DCMAKE_INSTALL_PREFIX=yourpath")
+  message(STATUS "              |   Eigen headers will then be installed to:")
+  message(STATUS "              |     ${INCLUDE_INSTALL_DIR}")
+  message(STATUS "              |   To install Eigen headers to a separate location, do:")
+  message(STATUS "              |     cmake . -DEIGEN_INCLUDE_INSTALL_DIR=yourpath")
+  message(STATUS "make doc      | Generate the API documentation, requires Doxygen & LaTeX")
+  message(STATUS "make check    | Build and run the unit-tests. Read this page:")
+  message(STATUS "              |   http://eigen.tuxfamily.org/index.php?title=Tests")
+  message(STATUS "make blas     | Build BLAS library (not the same thing as Eigen)")
+  message(STATUS "--------------+--------------------------------------------------------------")
+else()
+  message(STATUS "To build/run the unit tests, read this page:")
+  message(STATUS "  http://eigen.tuxfamily.org/index.php?title=Tests")
+endif()
+
+message(STATUS "")

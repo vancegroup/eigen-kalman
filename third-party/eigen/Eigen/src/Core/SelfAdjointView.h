@@ -32,13 +32,13 @@
   * \brief Expression of a selfadjoint matrix from a triangular part of a dense matrix
   *
   * \param MatrixType the type of the dense matrix storing the coefficients
-  * \param TriangularPart can be either \c Lower or \c Upper
+  * \param TriangularPart can be either \c #Lower or \c #Upper
   *
   * This class is an expression of a sefladjoint matrix from a triangular part of a matrix
   * with given dense storage of the coefficients. It is the return type of MatrixBase::selfadjointView()
   * and most of the time this is the only way that it is used.
   *
-  * \sa class TriangularBase, MatrixBase::selfAdjointView()
+  * \sa class TriangularBase, MatrixBase::selfadjointView()
   */
 
 namespace internal {
@@ -46,13 +46,14 @@ template<typename MatrixType, unsigned int UpLo>
 struct traits<SelfAdjointView<MatrixType, UpLo> > : traits<MatrixType>
 {
   typedef typename nested<MatrixType>::type MatrixTypeNested;
-  typedef typename remove_reference<MatrixTypeNested>::type _MatrixTypeNested;
+  typedef typename remove_all<MatrixTypeNested>::type MatrixTypeNestedCleaned;
   typedef MatrixType ExpressionType;
+  typedef typename MatrixType::PlainObject DenseMatrixType;
   enum {
     Mode = UpLo | SelfAdjoint,
-    Flags =  _MatrixTypeNested::Flags & (HereditaryBits)
+    Flags =  MatrixTypeNestedCleaned::Flags & (HereditaryBits)
            & (~(PacketAccessBit | DirectAccessBit | LinearAccessBit)), // FIXME these flags should be preserved
-    CoeffReadCost = _MatrixTypeNested::CoeffReadCost
+    CoeffReadCost = MatrixTypeNestedCleaned::CoeffReadCost
   };
 };
 }
@@ -68,6 +69,8 @@ template<typename MatrixType, unsigned int UpLo> class SelfAdjointView
   public:
 
     typedef TriangularBase<SelfAdjointView> Base;
+    typedef typename internal::traits<SelfAdjointView>::MatrixTypeNested MatrixTypeNested;
+    typedef typename internal::traits<SelfAdjointView>::MatrixTypeNestedCleaned MatrixTypeNestedCleaned;
 
     /** \brief The type of coefficients in this matrix */
     typedef typename internal::traits<SelfAdjointView>::Scalar Scalar; 
@@ -80,7 +83,7 @@ template<typename MatrixType, unsigned int UpLo> class SelfAdjointView
     typedef typename MatrixType::PlainObject PlainObject;
 
     inline SelfAdjointView(const MatrixType& matrix) : m_matrix(matrix)
-    { eigen_assert(internal::are_flags_consistent<Mode>::ret); }
+    {}
 
     inline Index rows() const { return m_matrix.rows(); }
     inline Index cols() const { return m_matrix.cols(); }
@@ -106,10 +109,10 @@ template<typename MatrixType, unsigned int UpLo> class SelfAdjointView
     }
 
     /** \internal */
-    const MatrixType& _expression() const { return m_matrix; }
+    const MatrixTypeNestedCleaned& _expression() const { return m_matrix; }
 
-    const MatrixType& nestedExpression() const { return m_matrix; }
-    MatrixType& nestedExpression() { return const_cast<MatrixType&>(m_matrix); }
+    const MatrixTypeNestedCleaned& nestedExpression() const { return m_matrix; }
+    MatrixTypeNestedCleaned& nestedExpression() { return *const_cast<MatrixTypeNestedCleaned*>(&m_matrix); }
 
     /** Efficient self-adjoint matrix times vector/matrix product */
     template<typename OtherDerived>
@@ -171,9 +174,32 @@ template<typename MatrixType, unsigned int UpLo> class SelfAdjointView
 
     EigenvaluesReturnType eigenvalues() const;
     RealScalar operatorNorm() const;
+    
+    #ifdef EIGEN2_SUPPORT
+    template<typename OtherDerived>
+    SelfAdjointView& operator=(const MatrixBase<OtherDerived>& other)
+    {
+      enum {
+        OtherPart = UpLo == Upper ? StrictlyLower : StrictlyUpper
+      };
+      m_matrix.const_cast_derived().template triangularView<UpLo>() = other;
+      m_matrix.const_cast_derived().template triangularView<OtherPart>() = other.adjoint();
+      return *this;
+    }
+    template<typename OtherMatrixType, unsigned int OtherMode>
+    SelfAdjointView& operator=(const TriangularView<OtherMatrixType, OtherMode>& other)
+    {
+      enum {
+        OtherPart = UpLo == Upper ? StrictlyLower : StrictlyUpper
+      };
+      m_matrix.const_cast_derived().template triangularView<UpLo>() = other.toDenseMatrix();
+      m_matrix.const_cast_derived().template triangularView<OtherPart>() = other.toDenseMatrix().adjoint();
+      return *this;
+    }
+    #endif
 
   protected:
-    const typename MatrixType::Nested m_matrix;
+    const MatrixTypeNested m_matrix;
 };
 
 
@@ -282,14 +308,16 @@ struct triangular_assignment_selector<Derived1, Derived2, SelfAdjoint|Lower, Dyn
 
 template<typename Derived>
 template<unsigned int UpLo>
-const SelfAdjointView<Derived, UpLo> MatrixBase<Derived>::selfadjointView() const
+typename MatrixBase<Derived>::template ConstSelfAdjointViewReturnType<UpLo>::Type
+MatrixBase<Derived>::selfadjointView() const
 {
   return derived();
 }
 
 template<typename Derived>
 template<unsigned int UpLo>
-SelfAdjointView<Derived, UpLo> MatrixBase<Derived>::selfadjointView()
+typename MatrixBase<Derived>::template SelfAdjointViewReturnType<UpLo>::Type
+MatrixBase<Derived>::selfadjointView()
 {
   return derived();
 }

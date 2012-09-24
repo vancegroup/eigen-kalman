@@ -31,7 +31,7 @@
 
 template<typename Scalar> void sparse_llt(int rows, int cols)
 {
-  double density = std::max(8./(rows*cols), 0.01);
+  double density = (std::max)(8./(rows*cols), 0.01);
   typedef Matrix<Scalar,Dynamic,Dynamic> DenseMatrix;
   typedef Matrix<Scalar,Dynamic,1> DenseVector;
 
@@ -102,11 +102,14 @@ template<typename Scalar> void sparse_llt(int rows, int cols)
       // with multiple rhs
       ref_X = refMat3.template selfadjointView<Lower>().llt().solve(B);
 
+      #ifndef EIGEN_DEFAULT_TO_ROW_MAJOR
+      // TODO make sure the API is properly documented about this fact
       X = CholmodDecomposition<SparseMatrix<Scalar>, Lower>(m3).solve(B);
       VERIFY(ref_X.isApprox(X,test_precision<Scalar>()) && "LLT: cholmod solve, multiple dense rhs");
       
       X = CholmodDecomposition<SparseMatrix<Scalar>, Upper>(m3).solve(B);
       VERIFY(ref_X.isApprox(X,test_precision<Scalar>()) && "LLT: cholmod solve, multiple dense rhs");
+      #endif
       
       
       // with a sparse rhs

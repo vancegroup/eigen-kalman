@@ -35,7 +35,7 @@ template<typename T> struct add_const_on_value_type_if_arithmetic
 /** \brief Base class providing read-only coefficient access to matrices and arrays.
   * \ingroup Core_Module
   * \tparam Derived Type of the derived class
-  * \tparam ReadOnlyAccessors Constant indicating read-only access
+  * \tparam #ReadOnlyAccessors Constant indicating read-only access
   *
   * This class defines the \c operator() \c const function and friends, which can be used to read specific
   * entries of a matrix or array.
@@ -162,8 +162,10 @@ class DenseCoeffsBase<Derived,ReadOnlyAccessors> : public EigenBase<Derived>
     EIGEN_STRONG_INLINE CoeffReturnType
     operator[](Index index) const
     {
+      #ifndef EIGEN2_SUPPORT
       EIGEN_STATIC_ASSERT(Derived::IsVectorAtCompileTime,
                           THE_BRACKET_OPERATOR_IS_ONLY_FOR_VECTORS__USE_THE_PARENTHESIS_OPERATOR_INSTEAD)
+      #endif
       eigen_assert(index >= 0 && index < size());
       return derived().coeff(index);
     }
@@ -205,11 +207,12 @@ class DenseCoeffsBase<Derived,ReadOnlyAccessors> : public EigenBase<Derived>
     EIGEN_STRONG_INLINE CoeffReturnType
     w() const { return (*this)[3]; }
 
-    /** \returns the packet of coefficients starting at the given row and column. It is your responsibility
+    /** \internal
+      * \returns the packet of coefficients starting at the given row and column. It is your responsibility
       * to ensure that a packet really starts there. This method is only available on expressions having the
       * PacketAccessBit.
       *
-      * The \a LoadMode parameter may have the value \a Aligned or \a Unaligned. Its effect is to select
+      * The \a LoadMode parameter may have the value \a #Aligned or \a #Unaligned. Its effect is to select
       * the appropriate vectorization instruction. Aligned access is faster, but is only possible for packets
       * starting at an address which is a multiple of the packet size.
       */
@@ -223,6 +226,7 @@ class DenseCoeffsBase<Derived,ReadOnlyAccessors> : public EigenBase<Derived>
     }
 
 
+    /** \internal */
     template<int LoadMode>
     EIGEN_STRONG_INLINE PacketReturnType packetByOuterInner(Index outer, Index inner) const
     {
@@ -230,11 +234,12 @@ class DenseCoeffsBase<Derived,ReadOnlyAccessors> : public EigenBase<Derived>
                               colIndexByOuterInner(outer, inner));
     }
 
-    /** \returns the packet of coefficients starting at the given index. It is your responsibility
+    /** \internal
+      * \returns the packet of coefficients starting at the given index. It is your responsibility
       * to ensure that a packet really starts there. This method is only available on expressions having the
       * PacketAccessBit and the LinearAccessBit.
       *
-      * The \a LoadMode parameter may have the value \a Aligned or \a Unaligned. Its effect is to select
+      * The \a LoadMode parameter may have the value \a #Aligned or \a #Unaligned. Its effect is to select
       * the appropriate vectorization instruction. Aligned access is faster, but is only possible for packets
       * starting at an address which is a multiple of the packet size.
       */
@@ -270,7 +275,7 @@ class DenseCoeffsBase<Derived,ReadOnlyAccessors> : public EigenBase<Derived>
 /** \brief Base class providing read/write coefficient access to matrices and arrays.
   * \ingroup Core_Module
   * \tparam Derived Type of the derived class
-  * \tparam WriteAccessors Constant indicating read/write access
+  * \tparam #WriteAccessors Constant indicating read/write access
   *
   * This class defines the non-const \c operator() function and friends, which can be used to write specific
   * entries of a matrix or array. This class inherits DenseCoeffsBase<Derived, ReadOnlyAccessors> which
@@ -379,8 +384,10 @@ class DenseCoeffsBase<Derived, WriteAccessors> : public DenseCoeffsBase<Derived,
     EIGEN_STRONG_INLINE Scalar&
     operator[](Index index)
     {
+      #ifndef EIGEN2_SUPPORT
       EIGEN_STATIC_ASSERT(Derived::IsVectorAtCompileTime,
                           THE_BRACKET_OPERATOR_IS_ONLY_FOR_VECTORS__USE_THE_PARENTHESIS_OPERATOR_INSTEAD)
+      #endif
       eigen_assert(index >= 0 && index < size());
       return derived().coeffRef(index);
     }
@@ -421,11 +428,12 @@ class DenseCoeffsBase<Derived, WriteAccessors> : public DenseCoeffsBase<Derived,
     EIGEN_STRONG_INLINE Scalar&
     w() { return (*this)[3]; }
 
-    /** Stores the given packet of coefficients, at the given row and column of this expression. It is your responsibility
+    /** \internal
+      * Stores the given packet of coefficients, at the given row and column of this expression. It is your responsibility
       * to ensure that a packet really starts there. This method is only available on expressions having the
       * PacketAccessBit.
       *
-      * The \a LoadMode parameter may have the value \a Aligned or \a Unaligned. Its effect is to select
+      * The \a LoadMode parameter may have the value \a #Aligned or \a #Unaligned. Its effect is to select
       * the appropriate vectorization instruction. Aligned access is faster, but is only possible for packets
       * starting at an address which is a multiple of the packet size.
       */
@@ -440,6 +448,7 @@ class DenseCoeffsBase<Derived, WriteAccessors> : public DenseCoeffsBase<Derived,
     }
 
 
+    /** \internal */
     template<int StoreMode>
     EIGEN_STRONG_INLINE void writePacketByOuterInner
     (Index outer, Index inner, const typename internal::packet_traits<Scalar>::type& x)
@@ -449,7 +458,8 @@ class DenseCoeffsBase<Derived, WriteAccessors> : public DenseCoeffsBase<Derived,
                             x);
     }
 
-    /** Stores the given packet of coefficients, at the given index in this expression. It is your responsibility
+    /** \internal
+      * Stores the given packet of coefficients, at the given index in this expression. It is your responsibility
       * to ensure that a packet really starts there. This method is only available on expressions having the
       * PacketAccessBit and the LinearAccessBit.
       *
@@ -457,7 +467,6 @@ class DenseCoeffsBase<Derived, WriteAccessors> : public DenseCoeffsBase<Derived,
       * the appropriate vectorization instruction. Aligned access is faster, but is only possible for packets
       * starting at an address which is a multiple of the packet size.
       */
-
     template<int StoreMode>
     EIGEN_STRONG_INLINE void writePacket
     (Index index, const typename internal::packet_traits<Scalar>::type& x)
@@ -542,6 +551,7 @@ class DenseCoeffsBase<Derived, WriteAccessors> : public DenseCoeffsBase<Derived,
         other.derived().template packet<LoadMode>(index));
     }
 
+    /** \internal */
     template<typename OtherDerived, int StoreMode, int LoadMode>
     EIGEN_STRONG_INLINE void copyPacketByOuterInner(Index outer, Index inner, const DenseBase<OtherDerived>& other)
     {
@@ -554,19 +564,90 @@ class DenseCoeffsBase<Derived, WriteAccessors> : public DenseCoeffsBase<Derived,
 
 };
 
-/** \brief Base class providing direct coefficient access to matrices and arrays.
+/** \brief Base class providing direct read-only coefficient access to matrices and arrays.
   * \ingroup Core_Module
   * \tparam Derived Type of the derived class
-  * \tparam DirectAccessors Constant indicating direct access
+  * \tparam #DirectAccessors Constant indicating direct access
   *
   * This class defines functions to work with strides which can be used to access entries directly. This class
-  * inherits DenseCoeffsBase<Derived, WriteAccessors> which defines functions to access entries using 
+  * inherits DenseCoeffsBase<Derived, ReadOnlyAccessors> which defines functions to access entries read-only using
   * \c operator() .
   *
   * \sa \ref TopicClassHierarchy
   */
 template<typename Derived>
-class DenseCoeffsBase<Derived, DirectAccessors> : public DenseCoeffsBase<Derived, WriteAccessors>
+class DenseCoeffsBase<Derived, DirectAccessors> : public DenseCoeffsBase<Derived, ReadOnlyAccessors>
+{
+  public:
+
+    typedef DenseCoeffsBase<Derived, ReadOnlyAccessors> Base;
+    typedef typename internal::traits<Derived>::Index Index;
+    typedef typename internal::traits<Derived>::Scalar Scalar;
+    typedef typename NumTraits<Scalar>::Real RealScalar;
+
+    using Base::rows;
+    using Base::cols;
+    using Base::size;
+    using Base::derived;
+
+    /** \returns the pointer increment between two consecutive elements within a slice in the inner direction.
+      *
+      * \sa outerStride(), rowStride(), colStride()
+      */
+    inline Index innerStride() const
+    {
+      return derived().innerStride();
+    }
+
+    /** \returns the pointer increment between two consecutive inner slices (for example, between two consecutive columns
+      *          in a column-major matrix).
+      *
+      * \sa innerStride(), rowStride(), colStride()
+      */
+    inline Index outerStride() const
+    {
+      return derived().outerStride();
+    }
+
+    // FIXME shall we remove it ?
+    inline Index stride() const
+    {
+      return Derived::IsVectorAtCompileTime ? innerStride() : outerStride();
+    }
+
+    /** \returns the pointer increment between two consecutive rows.
+      *
+      * \sa innerStride(), outerStride(), colStride()
+      */
+    inline Index rowStride() const
+    {
+      return Derived::IsRowMajor ? outerStride() : innerStride();
+    }
+
+    /** \returns the pointer increment between two consecutive columns.
+      *
+      * \sa innerStride(), outerStride(), rowStride()
+      */
+    inline Index colStride() const
+    {
+      return Derived::IsRowMajor ? innerStride() : outerStride();
+    }
+};
+
+/** \brief Base class providing direct read/write coefficient access to matrices and arrays.
+  * \ingroup Core_Module
+  * \tparam Derived Type of the derived class
+  * \tparam #DirectWriteAccessors Constant indicating direct access
+  *
+  * This class defines functions to work with strides which can be used to access entries directly. This class
+  * inherits DenseCoeffsBase<Derived, WriteAccessors> which defines functions to access entries read/write using
+  * \c operator().
+  *
+  * \sa \ref TopicClassHierarchy
+  */
+template<typename Derived>
+class DenseCoeffsBase<Derived, DirectWriteAccessors>
+  : public DenseCoeffsBase<Derived, WriteAccessors>
 {
   public:
 

@@ -41,18 +41,20 @@ template<typename T, typename U,
 >
 struct dot_nocheck
 {
-  static inline typename traits<T>::Scalar run(const MatrixBase<T>& a, const MatrixBase<U>& b)
+  typedef typename scalar_product_traits<typename traits<T>::Scalar,typename traits<U>::Scalar>::ReturnType ResScalar;
+  static inline ResScalar run(const MatrixBase<T>& a, const MatrixBase<U>& b)
   {
-    return a.template binaryExpr<scalar_conj_product_op<typename traits<T>::Scalar> >(b).sum();
+    return a.template binaryExpr<scalar_conj_product_op<typename traits<T>::Scalar,typename traits<U>::Scalar> >(b).sum();
   }
 };
 
 template<typename T, typename U>
 struct dot_nocheck<T, U, true>
 {
-  static inline typename traits<T>::Scalar run(const MatrixBase<T>& a, const MatrixBase<U>& b)
+  typedef typename scalar_product_traits<typename traits<T>::Scalar,typename traits<U>::Scalar>::ReturnType ResScalar;
+  static inline ResScalar run(const MatrixBase<T>& a, const MatrixBase<U>& b)
   {
-    return a.transpose().template binaryExpr<scalar_conj_product_op<typename traits<T>::Scalar> >(b).sum();
+    return a.transpose().template binaryExpr<scalar_conj_product_op<typename traits<T>::Scalar,typename traits<U>::Scalar> >(b).sum();
   }
 };
 
@@ -70,8 +72,34 @@ struct dot_nocheck<T, U, true>
   */
 template<typename Derived>
 template<typename OtherDerived>
-typename internal::traits<Derived>::Scalar
+typename internal::scalar_product_traits<typename internal::traits<Derived>::Scalar,typename internal::traits<OtherDerived>::Scalar>::ReturnType
 MatrixBase<Derived>::dot(const MatrixBase<OtherDerived>& other) const
+{
+  EIGEN_STATIC_ASSERT_VECTOR_ONLY(Derived)
+  EIGEN_STATIC_ASSERT_VECTOR_ONLY(OtherDerived)
+  EIGEN_STATIC_ASSERT_SAME_VECTOR_SIZE(Derived,OtherDerived)
+  typedef internal::scalar_conj_product_op<Scalar,typename OtherDerived::Scalar> func;
+  EIGEN_CHECK_BINARY_COMPATIBILIY(func,Scalar,typename OtherDerived::Scalar);
+
+  eigen_assert(size() == other.size());
+
+  return internal::dot_nocheck<Derived,OtherDerived>::run(*this, other);
+}
+
+#ifdef EIGEN2_SUPPORT
+/** \returns the dot product of *this with other, with the Eigen2 convention that the dot product is linear in the first variable
+  * (conjugating the second variable). Of course this only makes a difference in the complex case.
+  *
+  * This method is only available in EIGEN2_SUPPORT mode.
+  *
+  * \only_for_vectors
+  *
+  * \sa dot()
+  */
+template<typename Derived>
+template<typename OtherDerived>
+typename internal::traits<Derived>::Scalar
+MatrixBase<Derived>::eigen2_dot(const MatrixBase<OtherDerived>& other) const
 {
   EIGEN_STATIC_ASSERT_VECTOR_ONLY(Derived)
   EIGEN_STATIC_ASSERT_VECTOR_ONLY(OtherDerived)
@@ -81,12 +109,16 @@ MatrixBase<Derived>::dot(const MatrixBase<OtherDerived>& other) const
 
   eigen_assert(size() == other.size());
 
-  return internal::dot_nocheck<Derived,OtherDerived>::run(*this, other);
+  return internal::dot_nocheck<OtherDerived,Derived>::run(other,*this);
 }
+#endif
+
 
 //---------- implementation of L2 norm and related functions ----------
 
-/** \returns the squared \em l2 norm of *this, i.e., for vectors, the dot product of *this with itself.
+/** \returns, for vectors, the squared \em l2 norm of \c *this, and for matrices the Frobenius norm.
+  * In both cases, it consists in the sum of the square of all the matrix entries.
+  * For vectors, this is also equals to the dot product of \c *this with itself.
   *
   * \sa dot(), norm()
   */
@@ -96,7 +128,9 @@ EIGEN_STRONG_INLINE typename NumTraits<typename internal::traits<Derived>::Scala
   return internal::real((*this).cwiseAbs2().sum());
 }
 
-/** \returns the \em l2 norm of *this, i.e., for vectors, the square root of the dot product of *this with itself.
+/** \returns, for vectors, the \em l2 norm of \c *this, and for matrices the Frobenius norm.
+  * In both cases, it consists in the square root of the sum of the square of all the matrix entries.
+  * For vectors, this is also equals to the square root of the dot product of \c *this with itself.
   *
   * \sa dot(), squaredNorm()
   */

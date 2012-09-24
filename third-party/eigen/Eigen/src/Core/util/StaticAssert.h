@@ -93,6 +93,8 @@
         THIS_METHOD_IS_ONLY_FOR_SPECIFIC_TRANSFORMATIONS,
         YOU_CANNOT_MIX_ARRAYS_AND_MATRICES,
         YOU_PERFORMED_AN_INVALID_TRANSFORMATION_CONVERSION,
+        THIS_EXPRESSION_IS_NOT_A_LVALUE__IT_IS_READ_ONLY,
+        YOU_ARE_TRYING_TO_USE_AN_INDEX_BASED_ACCESSOR_ON_AN_EXPRESSION_THAT_DOES_NOT_SUPPORT_THAT,
         THIS_METHOD_IS_ONLY_FOR_1x1_EXPRESSIONS
       };
     };
@@ -105,12 +107,12 @@
     #ifdef _MSC_VER
 
       #define EIGEN_STATIC_ASSERT(CONDITION,MSG) \
-        {Eigen::internal::static_assertion<(CONDITION)>::MSG;}
+        {Eigen::internal::static_assertion<bool(CONDITION)>::MSG;}
 
     #else
 
       #define EIGEN_STATIC_ASSERT(CONDITION,MSG) \
-        if (Eigen::internal::static_assertion<(CONDITION)>::MSG) {}
+        if (Eigen::internal::static_assertion<bool(CONDITION)>::MSG) {}
 
     #endif
 
@@ -169,8 +171,14 @@
        ) \
      )
 
-#define EIGEN_STATIC_ASSERT_NON_INTEGER(TYPE) \
-  EIGEN_STATIC_ASSERT(!NumTraits<TYPE>::IsInteger, THIS_FUNCTION_IS_NOT_FOR_INTEGER_NUMERIC_TYPES)
+#ifdef EIGEN2_SUPPORT
+  #define EIGEN_STATIC_ASSERT_NON_INTEGER(TYPE) \
+    eigen_assert(!NumTraits<Scalar>::IsInteger);
+#else
+  #define EIGEN_STATIC_ASSERT_NON_INTEGER(TYPE) \
+    EIGEN_STATIC_ASSERT(!NumTraits<TYPE>::IsInteger, THIS_FUNCTION_IS_NOT_FOR_INTEGER_NUMERIC_TYPES)
+#endif
+
 
 // static assertion failing if it is guaranteed at compile-time that the two matrix expression types have different sizes
 #define EIGEN_STATIC_ASSERT_SAME_MATRIX_SIZE(TYPE0,TYPE1) \
@@ -182,5 +190,9 @@
       EIGEN_STATIC_ASSERT((TYPE::RowsAtCompileTime == 1 || TYPE::RowsAtCompileTime == Dynamic) && \
                           (TYPE::ColsAtCompileTime == 1 || TYPE::ColsAtCompileTime == Dynamic), \
                           THIS_METHOD_IS_ONLY_FOR_1x1_EXPRESSIONS)
+
+#define EIGEN_STATIC_ASSERT_LVALUE(Derived) \
+      EIGEN_STATIC_ASSERT(internal::is_lvalue<Derived>::value, \
+                          THIS_EXPRESSION_IS_NOT_A_LVALUE__IT_IS_READ_ONLY)
 
 #endif // EIGEN_STATIC_ASSERT_H

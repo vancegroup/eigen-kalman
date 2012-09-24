@@ -42,7 +42,10 @@ template<typename ExpressionType> class MatrixWrapper;
   *
   * This class is the base that is inherited by all array expression types.
   *
-  * \param Derived is the derived type, e.g., an array or an expression type.
+  * \tparam Derived is the derived type, e.g., an array or an expression type.
+  *
+  * This class can be extended with the help of the plugin mechanism described on the page
+  * \ref TopicCustomizingEigen by defining the preprocessor symbol \c EIGEN_ARRAYBASE_PLUGIN.
   *
   * \sa class MatrixBase, \ref TopicClassHierarchy
   */
@@ -91,6 +94,7 @@ template<typename Derived> class ArrayBase
     using Base::operator/=;
 
     typedef typename Base::CoeffReturnType CoeffReturnType;
+
 #endif // not EIGEN_PARSED_BY_DOXYGEN
 
 #ifndef EIGEN_PARSED_BY_DOXYGEN
@@ -169,10 +173,10 @@ template<typename Derived> class ArrayBase
     template<typename OtherDerived> explicit ArrayBase(const ArrayBase<OtherDerived>&);
   protected:
     // mixing arrays and matrices is not legal
-    template<typename OtherDerived> Derived& operator+=(const MatrixBase<OtherDerived>& mat)
+    template<typename OtherDerived> Derived& operator+=(const MatrixBase<OtherDerived>& )
     {EIGEN_STATIC_ASSERT(sizeof(typename OtherDerived::Scalar)==-1,YOU_CANNOT_MIX_ARRAYS_AND_MATRICES);}
     // mixing arrays and matrices is not legal
-    template<typename OtherDerived> Derived& operator-=(const MatrixBase<OtherDerived>& mat)
+    template<typename OtherDerived> Derived& operator-=(const MatrixBase<OtherDerived>& )
     {EIGEN_STATIC_ASSERT(sizeof(typename OtherDerived::Scalar)==-1,YOU_CANNOT_MIX_ARRAYS_AND_MATRICES);}
 };
 
@@ -186,7 +190,7 @@ EIGEN_STRONG_INLINE Derived &
 ArrayBase<Derived>::operator-=(const ArrayBase<OtherDerived> &other)
 {
   SelfCwiseBinaryOp<internal::scalar_difference_op<Scalar>, Derived, OtherDerived> tmp(derived());
-  tmp = other;
+  tmp = other.derived();
   return derived();
 }
 

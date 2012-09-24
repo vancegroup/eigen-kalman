@@ -111,17 +111,17 @@ EIGEN_MAKE_ALIGNED_OPERATOR_NEW_IF_VECTORIZABLE_FIXED_SIZE(_Scalar,_AmbientDim)
   }
 
   /** \returns the minimal corner */
-  inline const VectorType& min() const { return m_min; }
+  inline const VectorType& (min)() const { return m_min; }
   /** \returns a non const reference to the minimal corner */
-  inline VectorType& min() { return m_min; }
+  inline VectorType& (min)() { return m_min; }
   /** \returns the maximal corner */
-  inline const VectorType& max() const { return m_max; }
+  inline const VectorType& (max)() const { return m_max; }
   /** \returns a non const reference to the maximal corner */
-  inline VectorType& max() { return m_max; }
+  inline VectorType& (max)() { return m_max; }
 
   /** \returns the center of the box */
   inline const CwiseUnaryOp<internal::scalar_quotient1_op<Scalar>,
-                            CwiseBinaryOp<internal::scalar_sum_op<Scalar>, VectorType, VectorType> >
+                            const CwiseBinaryOp<internal::scalar_sum_op<Scalar>, const VectorType, const VectorType> >
   center() const
   { return (m_min+m_max)/2; }
 
@@ -129,7 +129,7 @@ EIGEN_MAKE_ALIGNED_OPERATOR_NEW_IF_VECTORIZABLE_FIXED_SIZE(_Scalar,_AmbientDim)
     * Note that this function does not get the same
     * result for integral or floating scalar types: see
     */
-  inline const CwiseBinaryOp< internal::scalar_difference_op<Scalar>, VectorType, VectorType> sizes() const
+  inline const CwiseBinaryOp< internal::scalar_difference_op<Scalar>, const VectorType, const VectorType> sizes() const
   { return m_max - m_min; }
 
   /** \returns the volume of the bounding box */
@@ -140,7 +140,7 @@ EIGEN_MAKE_ALIGNED_OPERATOR_NEW_IF_VECTORIZABLE_FIXED_SIZE(_Scalar,_AmbientDim)
     * if the length of the diagonal is needed: diagonal().norm()
     * will provide it.
     */
-  inline CwiseBinaryOp< internal::scalar_difference_op<Scalar>, VectorType, VectorType> diagonal() const
+  inline CwiseBinaryOp< internal::scalar_difference_op<Scalar>, const VectorType, const VectorType> diagonal() const
   { return sizes(); }
 
   /** \returns the vertex of the bounding box at the corner defined by
@@ -196,7 +196,7 @@ EIGEN_MAKE_ALIGNED_OPERATOR_NEW_IF_VECTORIZABLE_FIXED_SIZE(_Scalar,_AmbientDim)
 
   /** \returns true if the box \a b is entirely inside the box \c *this. */
   inline bool contains(const AlignedBox& b) const
-  { return (m_min.array()<=b.min().array()).all() && (b.max().array()<=m_max.array()).all(); }
+  { return (m_min.array()<=(b.min)().array()).all() && ((b.max)().array()<=m_max.array()).all(); }
 
   /** Extends \c *this such that it contains the point \a p and returns a reference to \c *this. */
   template<typename Derived>
@@ -287,8 +287,8 @@ EIGEN_MAKE_ALIGNED_OPERATOR_NEW_IF_VECTORIZABLE_FIXED_SIZE(_Scalar,_AmbientDim)
   template<typename OtherScalarType>
   inline explicit AlignedBox(const AlignedBox<OtherScalarType,AmbientDimAtCompileTime>& other)
   {
-    m_min = other.min().template cast<Scalar>();
-    m_max = other.max().template cast<Scalar>();
+    m_min = (other.min)().template cast<Scalar>();
+    m_max = (other.max)().template cast<Scalar>();
   }
 
   /** \returns \c true if \c *this is approximately equal to \a other, within the precision

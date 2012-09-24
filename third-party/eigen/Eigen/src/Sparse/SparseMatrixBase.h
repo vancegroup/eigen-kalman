@@ -31,10 +31,10 @@
   *
   * \brief Base class of any sparse matrices or sparse expressions
   *
-  * \param Derived
+  * \tparam Derived
   *
-  *
-  *
+  * This class can be extended with the help of the plugin mechanism described on the page
+  * \ref TopicCustomizingEigen by defining the preprocessor symbol \c EIGEN_SPARSEMATRIXBASE_PLUGIN.
   */
 template<typename Derived> class SparseMatrixBase : public EigenBase<Derived>
 {
@@ -118,18 +118,23 @@ template<typename Derived> class SparseMatrixBase : public EigenBase<Derived>
 //     typedef SparseCwiseUnaryOp<internal::scalar_imag_op<Scalar>, Derived> ImagReturnType;
     /** \internal the return type of MatrixBase::adjoint() */
     typedef typename internal::conditional<NumTraits<Scalar>::IsComplex,
-                        CwiseUnaryOp<internal::scalar_conjugate_op<Scalar>, Eigen::Transpose<Derived> >,
-                        Transpose<Derived>
+                        CwiseUnaryOp<internal::scalar_conjugate_op<Scalar>, Eigen::Transpose<const Derived> >,
+                        Transpose<const Derived>
                      >::type AdjointReturnType;
+
 
     typedef SparseMatrix<Scalar, Flags&RowMajorBit ? RowMajor : ColMajor> PlainObject;
 
-    #define EIGEN_CURRENT_STORAGE_BASE_CLASS Eigen::SparseMatrixBase
-    #include "../plugins/CommonCwiseUnaryOps.h"
-    #include "../plugins/CommonCwiseBinaryOps.h"
-    #include "../plugins/MatrixCwiseUnaryOps.h"
-    #include "../plugins/MatrixCwiseBinaryOps.h"
-    #undef EIGEN_CURRENT_STORAGE_BASE_CLASS
+#define EIGEN_CURRENT_STORAGE_BASE_CLASS Eigen::SparseMatrixBase
+#   include "../plugins/CommonCwiseUnaryOps.h"
+#   include "../plugins/CommonCwiseBinaryOps.h"
+#   include "../plugins/MatrixCwiseUnaryOps.h"
+#   include "../plugins/MatrixCwiseBinaryOps.h"
+#   ifdef EIGEN_SPARSEMATRIXBASE_PLUGIN
+#     include EIGEN_SPARSEMATRIXBASE_PLUGIN
+#   endif
+#   undef EIGEN_CURRENT_STORAGE_BASE_CLASS
+#undef EIGEN_CURRENT_STORAGE_BASE_CLASS
 
 #ifndef EIGEN_PARSED_BY_DOXYGEN
     /** This is the "real scalar" type; if the \a Scalar type is already real numbers
@@ -218,7 +223,7 @@ template<typename Derived> class SparseMatrixBase : public EigenBase<Derived>
       // thanks to shallow copies, we always eval to a tempary
       Derived temp(other.rows(), other.cols());
 
-      temp.reserve(std::max(this->rows(),this->cols())*2);
+      temp.reserve((std::max)(this->rows(),this->cols())*2);
       for (Index j=0; j<outerSize; ++j)
       {
         temp.startVec(j);
@@ -248,7 +253,7 @@ template<typename Derived> class SparseMatrixBase : public EigenBase<Derived>
         // eval without temporary
         derived().resize(other.rows(), other.cols());
         derived().setZero();
-        derived().reserve(std::max(this->rows(),this->cols())*2);
+        derived().reserve((std::max)(this->rows(),this->cols())*2);
         for (Index j=0; j<outerSize; ++j)
         {
           derived().startVec(j);
@@ -420,7 +425,7 @@ template<typename Derived> class SparseMatrixBase : public EigenBase<Derived>
 //     void normalize();
 
     Transpose<Derived> transpose() { return derived(); }
-    const Transpose<Derived> transpose() const { return derived(); }
+    const Transpose<const Derived> transpose() const { return derived(); }
     // void transposeInPlace();
     const AdjointReturnType adjoint() const { return transpose(); }
 
@@ -573,7 +578,7 @@ template<typename Derived> class SparseMatrixBase : public EigenBase<Derived>
     { return typename internal::eval<Derived>::type(derived()); }
 
 //     template<typename OtherDerived>
-//     void swap(MatrixBase<OtherDerived> EIGEN_REF_TO_TEMPORARY other);
+//     void swap(MatrixBase<OtherDerived> const & other);
 
 //     template<unsigned int Added>
 //     const SparseFlagged<Derived, Added, 0> marked() const;

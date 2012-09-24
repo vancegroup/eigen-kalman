@@ -24,7 +24,13 @@
 
 static int nb_temporaries;
 
-#define EIGEN_DEBUG_MATRIX_CTOR { if(size!=0) nb_temporaries++; }
+void on_temporary_creation(int size) {
+  // here's a great place to set a breakpoint when debugging failures in this test!
+  if(size!=0) nb_temporaries++;
+}
+  
+
+#define EIGEN_DENSE_STORAGE_CTOR_PLUGIN { on_temporary_creation(size); }
 
 #include "main.h"
 
@@ -54,7 +60,7 @@ template<typename MatrixType> void product_notemporary(const MatrixType& m)
                      m2 = MatrixType::Random(rows, cols),
                      m3(rows, cols);
   RowVectorType rv1 = RowVectorType::Random(rows), rvres(rows);
-  ColVectorType vc2 = ColVectorType::Random(cols), cvres(cols);
+  ColVectorType cv1 = ColVectorType::Random(cols), cvres(cols);
   RowMajorMatrixType rm3(rows, cols);
 
   Scalar s1 = internal::random<Scalar>(),
@@ -122,6 +128,13 @@ template<typename MatrixType> void product_notemporary(const MatrixType& m)
   // Zero temporaries for ... CoeffBasedProductMode
   // - does not work with GCC because of the <..>, we'ld need variadic macros ...
   //VERIFY_EVALUATION_COUNT( m3.col(0).head<5>() * m3.col(0).transpose() + m3.col(0).head<5>() * m3.col(0).transpose(), 0 );
+
+  // Check matrix * vectors
+  VERIFY_EVALUATION_COUNT( cvres.noalias() = m1 * cv1, 0 );
+  VERIFY_EVALUATION_COUNT( cvres.noalias() -= m1 * cv1, 0 );
+  VERIFY_EVALUATION_COUNT( cvres.noalias() -= m1 * m2.col(0), 0 );
+  VERIFY_EVALUATION_COUNT( cvres.noalias() -= m1 * rv1.adjoint(), 0 );
+  VERIFY_EVALUATION_COUNT( cvres.noalias() -= m1 * m2.row(0).transpose(), 0 );
 }
 
 void test_product_notemporary()

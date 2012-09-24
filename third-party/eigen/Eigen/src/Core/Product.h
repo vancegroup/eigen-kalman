@@ -353,15 +353,51 @@ struct gemv_selector<OnTheLeft,StorageOrder,BlasCompatible>
     Transpose<Dest> destT(dest);
     enum { OtherStorageOrder = StorageOrder == RowMajor ? ColMajor : RowMajor };
     gemv_selector<OnTheRight,OtherStorageOrder,BlasCompatible>
-      ::run(GeneralProduct<Transpose<typename ProductType::_RhsNested>,Transpose<typename ProductType::_LhsNested>, GemvProduct>
+      ::run(GeneralProduct<Transpose<const typename ProductType::_RhsNested>,Transpose<const typename ProductType::_LhsNested>, GemvProduct>
         (prod.rhs().transpose(), prod.lhs().transpose()), destT, alpha);
   }
+};
+
+template<typename Scalar,int Size,int MaxSize,bool Cond> struct gemv_static_vector_if;
+
+template<typename Scalar,int Size,int MaxSize>
+struct gemv_static_vector_if<Scalar,Size,MaxSize,false>
+{
+  EIGEN_STRONG_INLINE  Scalar* data() { eigen_internal_assert(false && "should never be called"); return 0; }
+};
+
+template<typename Scalar,int Size>
+struct gemv_static_vector_if<Scalar,Size,Dynamic,true>
+{
+  EIGEN_STRONG_INLINE Scalar* data() { return 0; }
+};
+
+template<typename Scalar,int Size,int MaxSize>
+struct gemv_static_vector_if<Scalar,Size,MaxSize,true>
+{
+  #if EIGEN_ALIGN_STATICALLY
+  internal::plain_array<Scalar,EIGEN_SIZE_MIN_PREFER_FIXED(Size,MaxSize),0> m_data;
+  EIGEN_STRONG_INLINE Scalar* data() { return m_data.array; }
+  #else
+  // Some architectures cannot align on the stack,
+  // => let's manually enforce alignment by allocating more data and return the address of the first aligned element.
+  enum {
+    ForceAlignment  = internal::packet_traits<Scalar>::Vectorizable,
+    PacketSize      = internal::packet_traits<Scalar>::size
+  };
+  internal::plain_array<Scalar,EIGEN_SIZE_MIN_PREFER_FIXED(Size,MaxSize)+(ForceAlignment?PacketSize:0),0> m_data;
+  EIGEN_STRONG_INLINE Scalar* data() {
+    return ForceAlignment
+            ? reinterpret_cast<Scalar*>((reinterpret_cast<size_t>(m_data.array) & ~(size_t(15))) + 16)
+            : m_data.array;
+  }
+  #endif
 };
 
 template<> struct gemv_selector<OnTheRight,ColMajor,true>
 {
   template<typename ProductType, typename Dest>
-  static void run(const ProductType& prod, Dest& dest, typename ProductType::Scalar alpha)
+  static inline void run(const ProductType& prod, Dest& dest, typename ProductType::Scalar alpha)
   {
     typedef typename ProductType::Index Index;
     typedef typename ProductType::LhsScalar   LhsScalar;
@@ -374,55 +410,60 @@ template<> struct gemv_selector<OnTheRight,ColMajor,true>
     typedef typename ProductType::RhsBlasTraits RhsBlasTraits;
     typedef Map<Matrix<ResScalar,Dynamic,1>, Aligned> MappedDest;
 
-    ActualLhsType actualLhs = LhsBlasTraits::extract(prod.lhs());
-    ActualRhsType actualRhs = RhsBlasTraits::extract(prod.rhs());
+    const ActualLhsType actualLhs = LhsBlasTraits::extract(prod.lhs());
+    const ActualRhsType actualRhs = RhsBlasTraits::extract(prod.rhs());
 
     ResScalar actualAlpha = alpha * LhsBlasTraits::extractScalarFactor(prod.lhs())
                                   * RhsBlasTraits::extractScalarFactor(prod.rhs());
 
     enum {
       // FIXME find a way to allow an inner stride on the result if packet_traits<Scalar>::size==1
+      // on, the other hand it is good for the cache to pack the vector anyways...
       EvalToDestAtCompileTime = Dest::InnerStrideAtCompileTime==1,
-      ComplexByReal = (NumTraits<LhsScalar>::IsComplex) && (!NumTraits<RhsScalar>::IsComplex)
+      ComplexByReal = (NumTraits<LhsScalar>::IsComplex) && (!NumTraits<RhsScalar>::IsComplex),
+      MightCannotUseDest = (Dest::InnerStrideAtCompileTime!=1) || ComplexByReal
     };
 
-    bool alphaIsCompatible = (!ComplexByReal) || (imag(actualAlpha)==RealScalar(0));
+    gemv_static_vector_if<ResScalar,Dest::SizeAtCompileTime,Dest::MaxSizeAtCompileTime,MightCannotUseDest> static_dest;
+
+    // this is written like this (i.e., with a ?:) to workaround an ICE with ICC 12
+    bool alphaIsCompatible = (!ComplexByReal) ? true : (imag(actualAlpha)==RealScalar(0));
     bool evalToDest = EvalToDestAtCompileTime && alphaIsCompatible;
     
     RhsScalar compatibleAlpha = get_factor<ResScalar,RhsScalar>::run(actualAlpha);
 
-    ResScalar* actualDest;
-    if (evalToDest)
+    ei_declare_aligned_stack_constructed_variable(ResScalar,actualDestPtr,dest.size(),
+                                                  evalToDest ? dest.data() : static_dest.data());
+    
+    if(!evalToDest)
     {
-      actualDest = &dest.coeffRef(0);
-    }
-    else
-    {
-      actualDest = ei_aligned_stack_new(ResScalar,dest.size());
+      #ifdef EIGEN_DENSE_STORAGE_CTOR_PLUGIN
+      int size = dest.size();
+      EIGEN_DENSE_STORAGE_CTOR_PLUGIN
+      #endif
       if(!alphaIsCompatible)
       {
-        MappedDest(actualDest, dest.size()).setZero();
+        MappedDest(actualDestPtr, dest.size()).setZero();
         compatibleAlpha = RhsScalar(1);
       }
       else
-        MappedDest(actualDest, dest.size()) = dest;
+        MappedDest(actualDestPtr, dest.size()) = dest;
     }
 
     general_matrix_vector_product
       <Index,LhsScalar,ColMajor,LhsBlasTraits::NeedToConjugate,RhsScalar,RhsBlasTraits::NeedToConjugate>::run(
         actualLhs.rows(), actualLhs.cols(),
-        &actualLhs.const_cast_derived().coeffRef(0,0), actualLhs.outerStride(),
+        &actualLhs.coeffRef(0,0), actualLhs.outerStride(),
         actualRhs.data(), actualRhs.innerStride(),
-        actualDest, 1,
+        actualDestPtr, 1,
         compatibleAlpha);
 
     if (!evalToDest)
     {
       if(!alphaIsCompatible)
-        dest += actualAlpha * MappedDest(actualDest, dest.size());
+        dest += actualAlpha * MappedDest(actualDestPtr, dest.size());
       else
-        dest = MappedDest(actualDest, dest.size());
-      ei_aligned_stack_delete(ResScalar, actualDest, dest.size());
+        dest = MappedDest(actualDestPtr, dest.size());
     }
   }
 };
@@ -442,37 +483,39 @@ template<> struct gemv_selector<OnTheRight,RowMajor,true>
     typedef typename ProductType::LhsBlasTraits LhsBlasTraits;
     typedef typename ProductType::RhsBlasTraits RhsBlasTraits;
 
-    ActualLhsType actualLhs = LhsBlasTraits::extract(prod.lhs());
-    ActualRhsType actualRhs = RhsBlasTraits::extract(prod.rhs());
+    typename add_const<ActualLhsType>::type actualLhs = LhsBlasTraits::extract(prod.lhs());
+    typename add_const<ActualRhsType>::type actualRhs = RhsBlasTraits::extract(prod.rhs());
 
     ResScalar actualAlpha = alpha * LhsBlasTraits::extractScalarFactor(prod.lhs())
                                   * RhsBlasTraits::extractScalarFactor(prod.rhs());
 
     enum {
-      // FIXME I think here we really have to check for packet_traits<Scalar>::size==1
-      // because in this case it is fine to have an inner stride
-      DirectlyUseRhs = ((packet_traits<RhsScalar>::size==1) || (_ActualRhsType::Flags&ActualPacketAccessBit))
-                     && (!(_ActualRhsType::Flags & RowMajorBit))
+      // FIXME find a way to allow an inner stride on the result if packet_traits<Scalar>::size==1
+      // on, the other hand it is good for the cache to pack the vector anyways...
+      DirectlyUseRhs = _ActualRhsType::InnerStrideAtCompileTime==1
     };
 
-    RhsScalar* rhs_data;
-    if (DirectlyUseRhs)
-       rhs_data = &actualRhs.const_cast_derived().coeffRef(0);
-    else
+    gemv_static_vector_if<RhsScalar,_ActualRhsType::SizeAtCompileTime,_ActualRhsType::MaxSizeAtCompileTime,!DirectlyUseRhs> static_rhs;
+
+    ei_declare_aligned_stack_constructed_variable(RhsScalar,actualRhsPtr,actualRhs.size(),
+        DirectlyUseRhs ? const_cast<RhsScalar*>(actualRhs.data()) : static_rhs.data());
+
+    if(!DirectlyUseRhs)
     {
-      rhs_data = ei_aligned_stack_new(RhsScalar, actualRhs.size());
-      Map<typename _ActualRhsType::PlainObject>(rhs_data, actualRhs.size()) = actualRhs;
+      #ifdef EIGEN_DENSE_STORAGE_CTOR_PLUGIN
+      int size = actualRhs.size();
+      EIGEN_DENSE_STORAGE_CTOR_PLUGIN
+      #endif
+      Map<typename _ActualRhsType::PlainObject>(actualRhsPtr, actualRhs.size()) = actualRhs;
     }
 
     general_matrix_vector_product
       <Index,LhsScalar,RowMajor,LhsBlasTraits::NeedToConjugate,RhsScalar,RhsBlasTraits::NeedToConjugate>::run(
         actualLhs.rows(), actualLhs.cols(),
-        &actualLhs.const_cast_derived().coeffRef(0,0), actualLhs.outerStride(),
-        rhs_data, 1,
+        &actualLhs.coeffRef(0,0), actualLhs.outerStride(),
+        actualRhsPtr, 1,
         &dest.coeffRef(0,0), dest.innerStride(),
         actualAlpha);
-
-    if (!DirectlyUseRhs) ei_aligned_stack_delete(RhsScalar, rhs_data, prod.rhs().size());
   }
 };
 

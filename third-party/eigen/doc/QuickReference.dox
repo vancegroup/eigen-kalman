@@ -10,6 +10,7 @@ namespace Eigen {
   - \ref QuickRef_Coeffwise
   - \ref QuickRef_Reductions
   - \ref QuickRef_Blocks
+  - \ref QuickRef_Misc
   - \ref QuickRef_DiagTriSymm
 \n
 
@@ -176,7 +177,7 @@ vector[i]     vector.y()
               vector.w()
 \endcode</td><td>\code
 matrix(i,j)
-\endcode</td><td class="note">Range checking is disabled if \n NDEBUG or #EIGEN_NO_DEBUG is defined</td></tr>
+\endcode</td><td class="note">Range checking is disabled if \n NDEBUG or EIGEN_NO_DEBUG is defined</td></tr>
 
 <tr class="alt"><td>Coeff access without \n range checking</td>
 <td>\code
@@ -213,13 +214,13 @@ x = FixedXD::Zero();
 x = FixedXD::Ones();
 x = FixedXD::Constant(value);
 x = FixedXD::Random();
-x = FixedXD::LinSpaced(low, high, size);
+x = FixedXD::LinSpaced(size, low, high);
 
 x.setZero();
 x.setOnes();
 x.setConstant(value);
 x.setRandom();
-x.setLinSpaced(low, high, size);
+x.setLinSpaced(size, low, high);
 \endcode
   </td>
   <td>
@@ -249,13 +250,13 @@ x = Dynamic1D::Zero(size);
 x = Dynamic1D::Ones(size);
 x = Dynamic1D::Constant(size, value);
 x = Dynamic1D::Random(size);
-x = Dynamic1D::LinSpaced(low, high, size);
+x = Dynamic1D::LinSpaced(size, low, high);
 
 x.setZero(size);
 x.setOnes(size);
 x.setConstant(size, value);
 x.setRandom(size);
-x.setLinSpaced(low, high, size);
+x.setLinSpaced(size, low, high);
 \endcode
   </td>
 </tr>
@@ -395,6 +396,9 @@ mat1.array() / mat2.array()
 \endcode</td></tr>
 </table>
 
+It is also very simple to apply any user defined function \c foo using DenseBase::unaryExpr together with std::ptr_fun:
+\code mat1.unaryExpr(std::ptr_fun(foo))\endcode
+
 Array operators:\arrayworld
 
 <table class="manual">
@@ -422,6 +426,8 @@ array1.inverse()
 array1.sin()                  std::sin(array1)
 array1.cos()                  std::cos(array1)
 array1.tan()                  std::tan(array1)
+array1.asin()                 std::asin(array1)
+array1.acos()                 std::acos(array1)
 \endcode
 </td></tr>
 </table>
@@ -520,6 +526,24 @@ Read-write access to sub-matrices:</td></tr>
 
 
 
+<a href="#" class="top">top</a>\section QuickRef_Misc Miscellaneous operations
+
+\subsection QuickRef_Reverse Reverse
+Vectors, rows, and/or columns of a matrix can be reversed (see DenseBase::reverse(), DenseBase::reverseInPlace(), VectorwiseOp::reverse()).
+\code
+vec.reverse()           mat.colwise().reverse()   mat.rowwise().reverse()
+vec.reverseInPlace()
+\endcode
+
+\subsection QuickRef_Replicate Replicate
+Vectors, matrices, rows, and/or columns can be replicated in any direction (see DenseBase::replicate(), VectorwiseOp::replicate())
+\code
+vec.replicate(times)                                          vec.replicate<Times>
+mat.replicate(vertical_times, horizontal_times)               mat.replicate<VerticalTimes, HorizontalTimes>()
+mat.colwise().replicate(vertical_times, horizontal_times)     mat.colwise().replicate<VerticalTimes, HorizontalTimes>()
+mat.rowwise().replicate(vertical_times, horizontal_times)     mat.rowwise().replicate<VerticalTimes, HorizontalTimes>()
+\endcode
+
 
 <a href="#" class="top">top</a>\section QuickRef_DiagTriSymm Diagonal, Triangular, and Self-adjoint matrices
 (matrix world \matrixworld)
@@ -570,7 +594,7 @@ unit or null diagonal (read/write):
 </td><td>\code
 m.triangularView<Xxx>()
 \endcode \n
-\c Xxx = Upper, Lower, StrictlyUpper, StrictlyLower, UnitUpper, UnitLower
+\c Xxx = ::Upper, ::Lower, ::StrictlyUpper, ::StrictlyLower, ::UnitUpper, ::UnitLower
 </td></tr>
 <tr><td>
 Writing to a specific triangular part:\n (only the referenced triangular part is evaluated)
@@ -621,14 +645,14 @@ m3 -= s1 * m3.adjoint() * m1.selfadjointView<Eigen::Lower>();\endcode
 </td></tr>
 <tr><td>
 Rank 1 and rank K update: \n
-\f$ upper(M_1) += s1 M_2^* M_2 \f$ \n
-\f$ lower(M_1) -= M_2 M_2^* \f$
+\f$ upper(M_1) \mathrel{{+}{=}} s_1 M_2 M_2^* \f$ \n
+\f$ lower(M_1) \mathbin{{-}{=}} M_2^* M_2 \f$
 </td><td>\n \code
 M1.selfadjointView<Eigen::Upper>().rankUpdate(M2,s1);
-m1.selfadjointView<Eigen::Lower>().rankUpdate(m2.adjoint(),-1); \endcode
+M1.selfadjointView<Eigen::Lower>().rankUpdate(M2.adjoint(),-1); \endcode
 </td></tr>
 <tr><td>
-Rank 2 update: (\f$ M += s u v^* + s v u^* \f$)
+Rank 2 update: (\f$ M \mathrel{{+}{=}} s u v^* + s v u^* \f$)
 </td><td>\code
 M.selfadjointView<Eigen::Upper>().rankUpdate(u,v,s);
 \endcode

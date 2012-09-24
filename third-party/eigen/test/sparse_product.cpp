@@ -32,7 +32,7 @@ template<typename SparseMatrixType> void sparse_product(const SparseMatrixType& 
   typedef typename SparseMatrixType::Scalar Scalar;
   enum { Flags = SparseMatrixType::Flags };
 
-  double density = std::max(8./(rows*cols), 0.01);
+  double density = (std::max)(8./(rows*cols), 0.01);
   typedef Matrix<Scalar,Dynamic,Dynamic> DenseMatrix;
   typedef Matrix<Scalar,Dynamic,1> DenseVector;
 
@@ -137,6 +137,28 @@ template<typename SparseMatrixType> void sparse_product(const SparseMatrixType& 
   }
 }
 
+// New test for Bug in SparseTimeDenseProduct
+template<typename SparseMatrixType, typename DenseMatrixType> void sparse_product_regression_test()
+{
+  // This code does not compile with afflicted versions of the bug
+  SparseMatrixType sm1(3,2);
+  DenseMatrixType m2(2,2);
+  sm1.setZero();
+  m2.setZero();
+
+  DenseMatrixType m3 = sm1*m2;
+
+
+  // This code produces a segfault with afflicted versions of another SparseTimeDenseProduct
+  // bug
+
+  SparseMatrixType sm2(20000,2);
+  sm2.setZero();
+  DenseMatrixType m4(sm2*m2);
+
+  VERIFY_IS_APPROX( m4(0,0), 0.0 );
+}
+
 void test_sparse_product()
 {
   for(int i = 0; i < g_repeat; i++) {
@@ -145,5 +167,7 @@ void test_sparse_product()
     CALL_SUBTEST_1( sparse_product(SparseMatrix<double>(33, 33)) );
 
     CALL_SUBTEST_3( sparse_product(DynamicSparseMatrix<double>(8, 8)) );
+
+    CALL_SUBTEST_4( (sparse_product_regression_test<SparseMatrix<double,RowMajor>, Matrix<double, Dynamic, Dynamic, RowMajor> >()) );
   }
 }

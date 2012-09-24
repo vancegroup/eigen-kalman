@@ -8,9 +8,8 @@ Eigen can be extended in several ways, for instance, by defining global methods,
   - \ref ExtendingMatrixBase
   - \ref InheritingFromMatrix
   - \ref CustomScalarType
-  - \ref PreprocessorDirectives
 
-\section ExtendingMatrixBase Extending MatrixBase
+\section ExtendingMatrixBase Extending MatrixBase (and other classes)
 
 In this section we will see how to add custom methods to MatrixBase. Since all expressions and matrix types inherit MatrixBase, adding a method to MatrixBase make it immediately available to all expressions ! A typical use case is, for instance, to make Eigen compatible with another API.
 
@@ -23,9 +22,11 @@ class MatrixBase {
   #endif
 };
 \endcode
-Therefore to extend MatrixBase with you own methods you just have to create a file with your method declaration and define EIGEN_MATRIXBASE_PLUGIN before you include any Eigen's header file.
+Therefore to extend MatrixBase with your own methods you just have to create a file with your method declaration and define EIGEN_MATRIXBASE_PLUGIN before you include any Eigen's header file.
 
-Here is an example of such an extension file: \n
+You can extend many of the other classes used in Eigen by defining similarly named preprocessor symbols. For instance, define \c EIGEN_ARRAYBASE_PLUGIN if you want to extend the ArrayBase class. A full list of classes that can be extended in this way and the corresponding preprocessor symbols can be found on our page \ref TopicPreprocessorDirectives.
+
+Here is an example of an extension file for adding methods to MatrixBase: \n
 \b MatrixBaseAddons.h
 \code
 inline Scalar at(uint i, uint j) const { return this->operator()(i,j); }
@@ -180,17 +181,7 @@ namespace adtl {
 \endcode
 
 
-
-\section PreprocessorDirectives Preprocessor directives
-
-You can control some aspects of Eigen by defining the following preprocessor tokens them before including any of Eigen's headers.
- - \b #EIGEN_NO_DEBUG disables Eigen assertions. Like NDEBUG but only affects Eigen's assertions.
- - \b EIGEN_DONT_VECTORIZE disables explicit vectorization when defined.
- - \b EIGEN_UNROLLING_LIMIT defines the maximal instruction counts to enable meta unrolling of loops. Set it to zero to disable unrolling. The default is 100.
- - \b EIGEN_DEFAULT_TO_ROW_MAJOR the default storage order for matrices becomes row-major instead of column-major.
- - \b EIGEN_TUNE_FOR_CPU_CACHE_SIZE represents the maximal size in Bytes of L2 blocks. Since several blocks have to stay concurently in L2 cache, this value should correspond to at most 1/4 of the size of L2 cache.
- - \b EIGEN_NO_STATIC_ASSERT replaces compile time static assertions by runtime assertions
- - \b EIGEN_MATRIXBASE_PLUGIN see \ref ExtendingMatrixBase
+\sa \ref TopicPreprocessorDirectives
 
 */
 

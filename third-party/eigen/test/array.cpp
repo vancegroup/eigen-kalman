@@ -33,7 +33,7 @@ template<typename ArrayType> void array(const ArrayType& m)
   typedef Array<Scalar, 1, ArrayType::ColsAtCompileTime> RowVectorType;
 
   Index rows = m.rows();
-  Index cols = m.cols();
+  Index cols = m.cols(); 
 
   ArrayType m1 = ArrayType::Random(rows, cols),
              m2 = ArrayType::Random(rows, cols),
@@ -43,7 +43,7 @@ template<typename ArrayType> void array(const ArrayType& m)
   RowVectorType rv1 = RowVectorType::Random(cols);
 
   Scalar  s1 = internal::random<Scalar>(),
-          s2 = internal::random<Scalar>();
+          s2 = internal::random<Scalar>();          
 
   // scalar addition
   VERIFY_IS_APPROX(m1 + s1, s1 + m1);
@@ -57,13 +57,32 @@ template<typename ArrayType> void array(const ArrayType& m)
   VERIFY_IS_APPROX(m3, m1 + s2);
   m3 = m1;
   m3 -= s1;
-  VERIFY_IS_APPROX(m3, m1 - s1);
+  VERIFY_IS_APPROX(m3, m1 - s1);  
+  
+  // scalar operators via Maps
+  m3 = m1;
+  ArrayType::Map(m1.data(), m1.rows(), m1.cols()) -= ArrayType::Map(m2.data(), m2.rows(), m2.cols());
+  VERIFY_IS_APPROX(m1, m3 - m2);
+  
+  m3 = m1;
+  ArrayType::Map(m1.data(), m1.rows(), m1.cols()) += ArrayType::Map(m2.data(), m2.rows(), m2.cols());
+  VERIFY_IS_APPROX(m1, m3 + m2);
+  
+  m3 = m1;
+  ArrayType::Map(m1.data(), m1.rows(), m1.cols()) *= ArrayType::Map(m2.data(), m2.rows(), m2.cols());
+  VERIFY_IS_APPROX(m1, m3 * m2);
+  
+  m3 = m1;
+  m2 = ArrayType::Random(rows,cols);
+  m2 = (m2==0).select(1,m2);
+  ArrayType::Map(m1.data(), m1.rows(), m1.cols()) /= ArrayType::Map(m2.data(), m2.rows(), m2.cols());  
+  VERIFY_IS_APPROX(m1, m3 / m2);
 
   // reductions
   VERIFY_IS_APPROX(m1.colwise().sum().sum(), m1.sum());
   VERIFY_IS_APPROX(m1.rowwise().sum().sum(), m1.sum());
-  if (!internal::isApprox(m1.sum(), (m1+m2).sum()))
-    VERIFY_IS_NOT_APPROX(((m1+m2).rowwise().sum()).sum(), m1.sum());
+  if (!internal::isApprox(m1.sum(), (m1+m2).sum(), test_precision<Scalar>()))
+      VERIFY_IS_NOT_APPROX(((m1+m2).rowwise().sum()).sum(), m1.sum());
   VERIFY_IS_APPROX(m1.colwise().sum(), m1.colwise().redux(internal::scalar_sum_op<Scalar>()));
 
   // vector-wise ops
@@ -92,7 +111,7 @@ template<typename ArrayType> void comparisons(const ArrayType& m)
 
   ArrayType m1 = ArrayType::Random(rows, cols),
              m2 = ArrayType::Random(rows, cols),
-             m3(rows, cols);
+             m3(rows, cols);            
 
   VERIFY(((m1 + Scalar(1)) > m1).all());
   VERIFY(((m1 - Scalar(1)) < m1).all());
@@ -150,10 +169,17 @@ template<typename ArrayType> void array_real(const ArrayType& m)
              m2 = ArrayType::Random(rows, cols),
              m3(rows, cols);
 
+  // these these are mostly to check possible compilation issues.
   VERIFY_IS_APPROX(m1.sin(), std::sin(m1));
   VERIFY_IS_APPROX(m1.sin(), internal::sin(m1));
   VERIFY_IS_APPROX(m1.cos(), std::cos(m1));
   VERIFY_IS_APPROX(m1.cos(), internal::cos(m1));
+  VERIFY_IS_APPROX(m1.asin(), std::asin(m1));
+  VERIFY_IS_APPROX(m1.asin(), internal::asin(m1));
+  VERIFY_IS_APPROX(m1.acos(), std::acos(m1));
+  VERIFY_IS_APPROX(m1.acos(), internal::acos(m1));
+  VERIFY_IS_APPROX(m1.tan(), std::tan(m1));
+  VERIFY_IS_APPROX(m1.tan(), internal::tan(m1));
 
   VERIFY_IS_APPROX(internal::cos(m1+RealScalar(3)*m2), internal::cos((m1+RealScalar(3)*m2).eval()));
   VERIFY_IS_APPROX(std::cos(m1+RealScalar(3)*m2), std::cos((m1+RealScalar(3)*m2).eval()));

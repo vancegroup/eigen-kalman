@@ -28,7 +28,7 @@
 
 static int nb_temporaries;
 
-#define EIGEN_DEBUG_MATRIX_CTOR { if(size!=0) nb_temporaries++; }
+#define EIGEN_DENSE_STORAGE_CTOR_PLUGIN { if(size!=0) nb_temporaries++; }
 
 #include "main.h"
 #include <Eigen/Cholesky>
@@ -124,6 +124,11 @@ template<typename MatrixType> void cholesky(const MatrixType& m)
     MatrixType neg = -symmLo;
     chollo.compute(neg);
     VERIFY(chollo.info()==NumericalIssue);
+
+    VERIFY_IS_APPROX(MatrixType(chollo.matrixL().transpose().conjugate()), MatrixType(chollo.matrixU()));
+    VERIFY_IS_APPROX(MatrixType(chollo.matrixU().transpose().conjugate()), MatrixType(chollo.matrixL()));
+    VERIFY_IS_APPROX(MatrixType(cholup.matrixL().transpose().conjugate()), MatrixType(cholup.matrixU()));
+    VERIFY_IS_APPROX(MatrixType(cholup.matrixU().transpose().conjugate()), MatrixType(cholup.matrixL()));
   }
 
   // LDLT
@@ -151,6 +156,11 @@ template<typename MatrixType> void cholesky(const MatrixType& m)
     VERIFY_IS_APPROX(symm * vecX, vecB);
     matX = ldltup.solve(matB);
     VERIFY_IS_APPROX(symm * matX, matB);
+
+    VERIFY_IS_APPROX(MatrixType(ldltlo.matrixL().transpose().conjugate()), MatrixType(ldltlo.matrixU()));
+    VERIFY_IS_APPROX(MatrixType(ldltlo.matrixU().transpose().conjugate()), MatrixType(ldltlo.matrixL()));
+    VERIFY_IS_APPROX(MatrixType(ldltup.matrixL().transpose().conjugate()), MatrixType(ldltup.matrixU()));
+    VERIFY_IS_APPROX(MatrixType(ldltup.matrixU().transpose().conjugate()), MatrixType(ldltup.matrixL()));
 
     if(MatrixType::RowsAtCompileTime==Dynamic)
     {
@@ -245,6 +255,22 @@ template<typename MatrixType> void cholesky_cplx(const MatrixType& m)
 
 }
 
+// regression test for bug 241
+template<typename MatrixType> void cholesky_bug241(const MatrixType& m)
+{
+  eigen_assert(m.rows() == 2 && m.cols() == 2);
+
+  typedef typename MatrixType::Scalar Scalar;
+  typedef Matrix<Scalar, MatrixType::RowsAtCompileTime, 1> VectorType;
+
+  MatrixType matA;
+  matA << 1, 1, 1, 1;
+  VectorType vecB;
+  vecB << 1, 1;
+  VectorType vecX = matA.ldlt().solve(vecB);
+  VERIFY_IS_APPROX(matA * vecX, vecB);
+}
+
 template<typename MatrixType> void cholesky_verify_assert()
 {
   MatrixType tmp;
@@ -271,6 +297,7 @@ void test_cholesky()
   for(int i = 0; i < g_repeat; i++) {
     CALL_SUBTEST_1( cholesky(Matrix<double,1,1>()) );
     CALL_SUBTEST_3( cholesky(Matrix2d()) );
+    CALL_SUBTEST_3( cholesky_bug241(Matrix2d()) );
     CALL_SUBTEST_4( cholesky(Matrix3f()) );
     CALL_SUBTEST_5( cholesky(Matrix4d()) );
     s = internal::random<int>(1,200);

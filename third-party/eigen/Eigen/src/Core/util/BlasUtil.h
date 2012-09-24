@@ -167,18 +167,16 @@ template<typename XprType> struct blas_traits
     IsTransposed = false,
     NeedToConjugate = false,
     HasUsableDirectAccess = (    (int(XprType::Flags)&DirectAccessBit)
-                     && (  /* Uncomment this when the low-level matrix-vector product functions support strided vectors
-                           bool(XprType::IsVectorAtCompileTime)
-                         ||  */
-                           int(inner_stride_at_compile_time<XprType>::ret) == 1)
-                   ) ?  1 : 0
+                              && (   bool(XprType::IsVectorAtCompileTime)
+                                  || int(inner_stride_at_compile_time<XprType>::ret) == 1)
+                             ) ?  1 : 0
   };
   typedef typename conditional<bool(HasUsableDirectAccess),
     ExtractType,
     typename _ExtractType::PlainObject
     >::type DirectLinearAccessType;
-  static inline ExtractType extract(const XprType& x) { return x; }
-  static inline Scalar extractScalarFactor(const XprType&) { return Scalar(1); }
+  static inline const ExtractType extract(const XprType& x) { return x; }
+  static inline const Scalar extractScalarFactor(const XprType&) { return Scalar(1); }
 };
 
 // pop conjugate
@@ -194,7 +192,7 @@ struct blas_traits<CwiseUnaryOp<scalar_conjugate_op<Scalar>, NestedXpr> >
     IsComplex = NumTraits<Scalar>::IsComplex,
     NeedToConjugate = Base::NeedToConjugate ? 0 : IsComplex
   };
-  static inline ExtractType extract(const XprType& x) { return Base::extract(x.nestedExpression()); }
+  static inline const ExtractType extract(const XprType& x) { return Base::extract(x.nestedExpression()); }
   static inline Scalar extractScalarFactor(const XprType& x) { return conj(Base::extractScalarFactor(x.nestedExpression())); }
 };
 
@@ -206,7 +204,7 @@ struct blas_traits<CwiseUnaryOp<scalar_multiple_op<Scalar>, NestedXpr> >
   typedef blas_traits<NestedXpr> Base;
   typedef CwiseUnaryOp<scalar_multiple_op<Scalar>, NestedXpr> XprType;
   typedef typename Base::ExtractType ExtractType;
-  static inline ExtractType extract(const XprType& x) { return Base::extract(x.nestedExpression()); }
+  static inline const ExtractType extract(const XprType& x) { return Base::extract(x.nestedExpression()); }
   static inline Scalar extractScalarFactor(const XprType& x)
   { return x.functor().m_other * Base::extractScalarFactor(x.nestedExpression()); }
 };
@@ -219,7 +217,7 @@ struct blas_traits<CwiseUnaryOp<scalar_opposite_op<Scalar>, NestedXpr> >
   typedef blas_traits<NestedXpr> Base;
   typedef CwiseUnaryOp<scalar_opposite_op<Scalar>, NestedXpr> XprType;
   typedef typename Base::ExtractType ExtractType;
-  static inline ExtractType extract(const XprType& x) { return Base::extract(x.nestedExpression()); }
+  static inline const ExtractType extract(const XprType& x) { return Base::extract(x.nestedExpression()); }
   static inline Scalar extractScalarFactor(const XprType& x)
   { return - Base::extractScalarFactor(x.nestedExpression()); }
 };
@@ -232,8 +230,8 @@ struct blas_traits<Transpose<NestedXpr> >
   typedef typename NestedXpr::Scalar Scalar;
   typedef blas_traits<NestedXpr> Base;
   typedef Transpose<NestedXpr> XprType;
-  typedef Transpose<typename Base::_ExtractType>  ExtractType;
-  typedef Transpose<typename Base::_ExtractType> _ExtractType;
+  typedef Transpose<const typename Base::_ExtractType>  ExtractType; // const to get rid of a compile error; anyway blas traits are only used on the RHS
+  typedef Transpose<const typename Base::_ExtractType> _ExtractType;
   typedef typename conditional<bool(Base::HasUsableDirectAccess),
     ExtractType,
     typename ExtractType::PlainObject
@@ -245,11 +243,16 @@ struct blas_traits<Transpose<NestedXpr> >
   static inline Scalar extractScalarFactor(const XprType& x) { return Base::extractScalarFactor(x.nestedExpression()); }
 };
 
+template<typename T>
+struct blas_traits<const T>
+     : blas_traits<T>
+{};
+
 template<typename T, bool HasUsableDirectAccess=blas_traits<T>::HasUsableDirectAccess>
 struct extract_data_selector {
   static const typename T::Scalar* run(const T& m)
   {
-    return &blas_traits<T>::extract(m).const_cast_derived().coeffRef(0,0); // FIXME this should be .data()
+    return const_cast<typename T::Scalar*>(&blas_traits<T>::extract(m).coeffRef(0,0)); // FIXME this should be .data()
   }
 };
 

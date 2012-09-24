@@ -65,15 +65,16 @@ void MatrixBase<Derived>::makeHouseholder(
   RealScalar& beta) const
 {
   EIGEN_STATIC_ASSERT_VECTOR_ONLY(EssentialPart)
-  VectorBlock<Derived, EssentialPart::SizeAtCompileTime> tail(derived(), 1, size()-1);
+  VectorBlock<const Derived, EssentialPart::SizeAtCompileTime> tail(derived(), 1, size()-1);
   
   RealScalar tailSqNorm = size()==1 ? RealScalar(0) : tail.squaredNorm();
   Scalar c0 = coeff(0);
 
   if(tailSqNorm == RealScalar(0) && internal::imag(c0)==RealScalar(0))
   {
-    tau = 0;
+    tau = RealScalar(0);
     beta = internal::real(c0);
+    essential.setZero();
   }
   else
   {

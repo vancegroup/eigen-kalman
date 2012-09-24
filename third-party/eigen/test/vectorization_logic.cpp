@@ -103,8 +103,8 @@ template<typename Scalar, bool Enable = internal::packet_traits<Scalar>::Vectori
     typedef Matrix<Scalar,Dynamic,Dynamic> MatrixXX;
     typedef Matrix<Scalar,PacketSize,PacketSize> Matrix11;
     typedef Matrix<Scalar,2*PacketSize,2*PacketSize> Matrix22;
-    typedef Matrix<Scalar,4*PacketSize,16> Matrix44;
-    typedef Matrix<Scalar,4*PacketSize,16,DontAlign|EIGEN_DEFAULT_MATRIX_STORAGE_ORDER_OPTION> Matrix44u;
+    typedef Matrix<Scalar,(Matrix11::Flags&RowMajorBit)?16:4*PacketSize,(Matrix11::Flags&RowMajorBit)?4*PacketSize:16> Matrix44;
+    typedef Matrix<Scalar,(Matrix11::Flags&RowMajorBit)?16:4*PacketSize,(Matrix11::Flags&RowMajorBit)?4*PacketSize:16,DontAlign|EIGEN_DEFAULT_MATRIX_STORAGE_ORDER_OPTION> Matrix44u;
     typedef Matrix<Scalar,4*PacketSize,16,ColMajor> Matrix44c;
     typedef Matrix<Scalar,4*PacketSize,16,RowMajor> Matrix44r;
 
@@ -118,11 +118,13 @@ template<typename Scalar, bool Enable = internal::packet_traits<Scalar>::Vectori
         (PacketSize==8 ? 2 : PacketSize==4 ? 2 : PacketSize==2 ? 2 : /*PacketSize==1 ?*/ 1),
       DontAlign|((Matrix1::Flags&RowMajorBit)?RowMajor:ColMajor)> Matrix1u;
 
+    // this type is made such that it can only be vectorized when viewed as a linear 1D vector
     typedef Matrix<Scalar,
-        (PacketSize==8 ? 4 : PacketSize==4 ? 6 : PacketSize==2 ? 3 : /*PacketSize==1 ?*/ 1),
-        (PacketSize==8 ? 6 : PacketSize==4 ? 2 : PacketSize==2 ? 2 : /*PacketSize==1 ?*/ 3)
+        (PacketSize==8 ? 4 : PacketSize==4 ? 6 : PacketSize==2 ? ((Matrix11::Flags&RowMajorBit)?2:3) : /*PacketSize==1 ?*/ 1),
+        (PacketSize==8 ? 6 : PacketSize==4 ? 2 : PacketSize==2 ? ((Matrix11::Flags&RowMajorBit)?3:2) : /*PacketSize==1 ?*/ 3)
       > Matrix3;
-      
+    
+    #if !EIGEN_GCC_AND_ARCH_DOESNT_WANT_STACK_ALIGNMENT
     VERIFY(test_assign(Vector1(),Vector1(),
       InnerVectorizedTraversal,CompleteUnrolling));
     VERIFY(test_assign(Vector1(),Vector1()+Vector1(),
@@ -172,10 +174,22 @@ template<typename Scalar, bool Enable = internal::packet_traits<Scalar>::Vectori
       VERIFY(test_assign(Matrix11(),Matrix<Scalar,17,17>().template block<PacketSize,PacketSize>(2,3)+Matrix<Scalar,17,17>().template block<PacketSize,PacketSize>(10,4),
       DefaultTraversal,CompleteUnrolling));
     }
+    
+    VERIFY(test_redux(Matrix3(),
+      LinearVectorizedTraversal,CompleteUnrolling));
 
-    VERIFY(test_assign(MatrixXX(10,10),MatrixXX(20,20).block(10,10,2,3),
-      SliceVectorizedTraversal,NoUnrolling));
+    VERIFY(test_redux(Matrix44(),
+      LinearVectorizedTraversal,NoUnrolling));
 
+    VERIFY(test_redux(Matrix44().template block<(Matrix1::Flags&RowMajorBit)?4:PacketSize,(Matrix1::Flags&RowMajorBit)?PacketSize:4>(1,2),
+      DefaultTraversal,CompleteUnrolling));
+
+    VERIFY(test_redux(Matrix44c().template block<2*PacketSize,1>(1,2),
+      LinearVectorizedTraversal,CompleteUnrolling));
+
+    VERIFY(test_redux(Matrix44r().template block<1,2*PacketSize>(2,1),
+      LinearVectorizedTraversal,CompleteUnrolling));
+    
     VERIFY((test_assign<
             Map<Matrix22, Aligned, OuterStride<3*PacketSize> >,
             Matrix22
@@ -186,23 +200,16 @@ template<typename Scalar, bool Enable = internal::packet_traits<Scalar>::Vectori
             Matrix22
             >(DefaultTraversal,CompleteUnrolling)));
 
+    VERIFY((test_assign(Matrix11(), Matrix11()*Matrix11(), InnerVectorizedTraversal, CompleteUnrolling)));
+    #endif
+
+    VERIFY(test_assign(MatrixXX(10,10),MatrixXX(20,20).block(10,10,2,3),
+      SliceVectorizedTraversal,NoUnrolling));
+
     VERIFY(test_redux(VectorX(10),
       LinearVectorizedTraversal,NoUnrolling));
 
-    VERIFY(test_redux(Matrix3(),
-      LinearVectorizedTraversal,CompleteUnrolling));
-
-    VERIFY(test_redux(Matrix44(),
-      LinearVectorizedTraversal,NoUnrolling));
-
-    VERIFY(test_redux(Matrix44().template block<PacketSize,4>(1,2),
-      DefaultTraversal,CompleteUnrolling));
-
-    VERIFY(test_redux(Matrix44c().template block<2*PacketSize,1>(1,2),
-      LinearVectorizedTraversal,CompleteUnrolling));
-
-    VERIFY(test_redux(Matrix44r().template block<1,2*PacketSize>(2,1),
-      LinearVectorizedTraversal,CompleteUnrolling));
+    
   }
 };
 
@@ -216,10 +223,10 @@ void test_vectorization_logic()
 
 #ifdef EIGEN_VECTORIZE
 
-  vectorization_logic<float>::run();
-  vectorization_logic<double>::run();
-  vectorization_logic<std::complex<float> >::run();
-  vectorization_logic<std::complex<double> >::run();
+  CALL_SUBTEST( vectorization_logic<float>::run() );
+  CALL_SUBTEST( vectorization_logic<double>::run() );
+  CALL_SUBTEST( vectorization_logic<std::complex<float> >::run() );
+  CALL_SUBTEST( vectorization_logic<std::complex<double> >::run() );
   
   if(internal::packet_traits<float>::Vectorizable)
   {

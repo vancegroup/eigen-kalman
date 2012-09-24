@@ -50,7 +50,8 @@ template<typename MatrixType> void basicStuff(const MatrixType& m)
              vzero = VectorType::Zero(rows);
   SquareMatrixType sm1 = SquareMatrixType::Random(rows,rows), sm2(rows,rows);
 
-  Scalar x = internal::random<Scalar>();
+  Scalar x = 0;
+  while(x == Scalar(0)) x = internal::random<Scalar>();
 
   Index r = internal::random<Index>(0, rows-1),
         c = internal::random<Index>(0, cols-1);
@@ -195,6 +196,20 @@ void casting()
 }
 #endif
 
+template <typename Scalar>
+void fixedSizeMatrixConstruction()
+{
+  const Scalar raw[3] = {1,2,3};
+  Matrix<Scalar,3,1> m(raw);
+  Array<Scalar,3,1> a(raw);
+  VERIFY(m(0) == 1);
+  VERIFY(m(1) == 2);
+  VERIFY(m(2) == 3);
+  VERIFY(a(0) == 1);
+  VERIFY(a(1) == 2);
+  VERIFY(a(2) == 3);  
+}
+
 void test_basicstuff()
 {
   for(int i = 0; i < g_repeat; i++) {
@@ -209,6 +224,10 @@ void test_basicstuff()
     CALL_SUBTEST_3( basicStuffComplex(MatrixXcf(internal::random<int>(1,100), internal::random<int>(1,100))) );
     CALL_SUBTEST_5( basicStuffComplex(MatrixXcd(internal::random<int>(1,100), internal::random<int>(1,100))) );
   }
+
+  CALL_SUBTEST_1(fixedSizeMatrixConstruction<unsigned char>());
+  CALL_SUBTEST_1(fixedSizeMatrixConstruction<double>());
+  CALL_SUBTEST_1(fixedSizeMatrixConstruction<double>());
 
   CALL_SUBTEST_2(casting());
 }

@@ -130,7 +130,7 @@ template<typename _MatrixType, int _UpLo> class LDLT
     }
 
     /** \returns the coefficients of the diagonal matrix D */
-    inline Diagonal<MatrixType,0> vectorD(void) const
+    inline Diagonal<const MatrixType> vectorD(void) const
     {
       eigen_assert(m_isInitialized && "LDLT is not initialized.");
       return m_matrix.diagonal();
@@ -142,6 +142,13 @@ template<typename _MatrixType, int _UpLo> class LDLT
       eigen_assert(m_isInitialized && "LDLT is not initialized.");
       return m_sign == 1;
     }
+    
+    #ifdef EIGEN2_SUPPORT
+    inline bool isPositiveDefinite() const
+    {
+      return isPositive();
+    }
+    #endif
 
     /** \returns true if the matrix is negative (semidefinite) */
     inline bool isNegative(void) const
@@ -152,9 +159,18 @@ template<typename _MatrixType, int _UpLo> class LDLT
 
     /** \returns a solution x of \f$ A x = b \f$ using the current decomposition of A.
       *
+      * This function also supports in-place solves using the syntax <tt>x = decompositionObject.solve(x)</tt> .
+      *
       * \note_about_checking_solutions
       *
-      * \sa solveInPlace(), MatrixBase::ldlt()
+      * More precisely, this method solves \f$ A x = b \f$ using the decomposition \f$ A = P^T L D L^* P \f$
+      * by solving the systems \f$ P^T y_1 = b \f$, \f$ L y_2 = y_1 \f$, \f$ D y_3 = y_2 \f$, 
+      * \f$ L^* y_4 = y_3 \f$ and \f$ P x = y_4 \f$ in succession. If the matrix \f$ A \f$ is singular, then
+      * \f$ D \f$ will also be singular (all the other matrices are invertible). In that case, the
+      * least-square solution of \f$ D y_3 = y_2 \f$ is computed. This does not mean that this function
+      * computes the least-square solution of \f$ A x = b \f$ is \f$ A \f$ is singular.
+      *
+      * \sa MatrixBase::ldlt()
       */
     template<typename Rhs>
     inline const internal::solve_retval<LDLT, Rhs>
@@ -165,6 +181,15 @@ template<typename _MatrixType, int _UpLo> class LDLT
                 && "LDLT::solve(): invalid number of rows of the right hand side matrix b");
       return internal::solve_retval<LDLT, Rhs>(*this, b.derived());
     }
+
+    #ifdef EIGEN2_SUPPORT
+    template<typename OtherDerived, typename ResultType>
+    bool solve(const MatrixBase<OtherDerived>& b, ResultType *result) const
+    {
+      *result = this->solve(b);
+      return true;
+    }
+    #endif
 
     template<typename Derived>
     bool solveInPlace(MatrixBase<Derived> &bAndX) const;
@@ -306,16 +331,16 @@ template<> struct ldlt_inplace<Upper>
 
 template<typename MatrixType> struct LDLT_Traits<MatrixType,Lower>
 {
-  typedef TriangularView<MatrixType, UnitLower> MatrixL;
-  typedef TriangularView<typename MatrixType::AdjointReturnType, UnitUpper> MatrixU;
+  typedef const TriangularView<const MatrixType, UnitLower> MatrixL;
+  typedef const TriangularView<const typename MatrixType::AdjointReturnType, UnitUpper> MatrixU;
   inline static MatrixL getL(const MatrixType& m) { return m; }
   inline static MatrixU getU(const MatrixType& m) { return m.adjoint(); }
 };
 
 template<typename MatrixType> struct LDLT_Traits<MatrixType,Upper>
 {
-  typedef TriangularView<typename MatrixType::AdjointReturnType, UnitLower> MatrixL;
-  typedef TriangularView<MatrixType, UnitUpper> MatrixU;
+  typedef const TriangularView<const typename MatrixType::AdjointReturnType, UnitLower> MatrixL;
+  typedef const TriangularView<const MatrixType, UnitUpper> MatrixU;
   inline static MatrixL getL(const MatrixType& m) { return m.adjoint(); }
   inline static MatrixU getU(const MatrixType& m) { return m; }
 };
@@ -360,7 +385,21 @@ struct solve_retval<LDLT<_MatrixType,_UpLo>, Rhs>
     dec().matrixL().solveInPlace(dst);
 
     // dst = D^-1 (L^-1 P b)
-    dst = dec().vectorD().asDiagonal().inverse() * dst;
+    // more precisely, use pseudo-inverse of D (see bug 241)
+    using std::abs;
+    using std::max;
+    typedef typename LDLTType::MatrixType MatrixType;
+    typedef typename LDLTType::Scalar Scalar;
+    typedef typename LDLTType::RealScalar RealScalar;
+    const Diagonal<const MatrixType> vectorD = dec().vectorD();
+    RealScalar tolerance = (max)(vectorD.array().abs().maxCoeff() * NumTraits<Scalar>::epsilon(),
+				 RealScalar(1) / NumTraits<RealScalar>::highest()); // motivated by LAPACK's xGELSS
+    for (Index i = 0; i < vectorD.size(); ++i) {
+      if(abs(vectorD(i)) > tolerance)
+	dst.row(i) /= vectorD(i);
+      else
+	dst.row(i).setZero();
+    }
 
     // dst = L^-T (D^-1 L^-1 P b)
     dec().matrixU().solveInPlace(dst);

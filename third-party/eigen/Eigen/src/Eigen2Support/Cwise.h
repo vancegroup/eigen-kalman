@@ -55,6 +55,9 @@
   * Example: \include MatrixBase_cwise_const.cpp
   * Output: \verbinclude MatrixBase_cwise_const.out
   *
+  * This class can be extended with the help of the plugin mechanism described on the page
+  * \ref TopicCustomizingEigen by defining the preprocessor symbol \c EIGEN_CWISE_PLUGIN.
+  *
   * \sa MatrixBase::cwise() const, MatrixBase::cwise()
   */
 template<typename ExpressionType> class Cwise
@@ -79,13 +82,17 @@ template<typename ExpressionType> class Cwise
     const EIGEN_CWISE_BINOP_RETURN_TYPE(internal::scalar_quotient_op)
     operator/(const MatrixBase<OtherDerived> &other) const;
 
+    /** \deprecated ArrayBase::min() */
     template<typename OtherDerived>
     const EIGEN_CWISE_BINOP_RETURN_TYPE(internal::scalar_min_op)
-    min(const MatrixBase<OtherDerived> &other) const;
+    (min)(const MatrixBase<OtherDerived> &other) const
+    { return EIGEN_CWISE_BINOP_RETURN_TYPE(internal::scalar_min_op)(_expression(), other.derived()); }
 
+    /** \deprecated ArrayBase::max() */
     template<typename OtherDerived>
     const EIGEN_CWISE_BINOP_RETURN_TYPE(internal::scalar_max_op)
-    max(const MatrixBase<OtherDerived> &other) const;
+    (max)(const MatrixBase<OtherDerived> &other) const
+    { return EIGEN_CWISE_BINOP_RETURN_TYPE(internal::scalar_max_op)(_expression(), other.derived()); }
 
     const EIGEN_CWISE_UNOP_RETURN_TYPE(internal::scalar_abs_op)      abs() const;
     const EIGEN_CWISE_UNOP_RETURN_TYPE(internal::scalar_abs2_op)     abs2() const;

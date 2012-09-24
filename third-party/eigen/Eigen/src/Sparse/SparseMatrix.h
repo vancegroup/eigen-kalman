@@ -34,13 +34,15 @@
   * This class implements a sparse matrix using the very common compressed row/column storage
   * scheme.
   *
-  * \param _Scalar the scalar type, i.e. the type of the coefficients
-  * \param _Options Union of bit flags controlling the storage scheme. Currently the only possibility
+  * \tparam _Scalar the scalar type, i.e. the type of the coefficients
+  * \tparam _Options Union of bit flags controlling the storage scheme. Currently the only possibility
   *                 is RowMajor. The default is 0 which means column-major.
-  * \param _Index the type of the indices. Default is \c int.
+  * \tparam _Index the type of the indices. Default is \c int.
   *
   * See http://www.netlib.org/linalg/html_templates/node91.html for details on the storage scheme.
   *
+  * This class can be extended with the help of the plugin mechanism described on the page
+  * \ref TopicCustomizingEigen by defining the preprocessor symbol \c EIGEN_SPARSEMATRIX_PLUGIN.
   */
 
 namespace internal {
@@ -61,6 +63,7 @@ struct traits<SparseMatrix<_Scalar, _Options, _Index> >
     SupportedAccessPatterns = InnerRandomAccessPattern
   };
 };
+
 } // end namespace internal
 
 template<typename _Scalar, int _Options, typename _Index>
@@ -69,7 +72,7 @@ class SparseMatrix
 {
   public:
     EIGEN_SPARSE_PUBLIC_INTERFACE(SparseMatrix)
-    using Base::operator=;
+//     using Base::operator=;
     EIGEN_SPARSE_INHERIT_ASSIGNMENT_OPERATOR(SparseMatrix, +=)
     EIGEN_SPARSE_INHERIT_ASSIGNMENT_OPERATOR(SparseMatrix, -=)
     // FIXME: why are these operator already alvailable ???
@@ -254,7 +257,7 @@ class SparseMatrix
           // furthermore we bound the realloc ratio to:
           //   1) reduce multiple minor realloc when the matrix is almost filled
           //   2) avoid to allocate too much memory when the matrix is almost empty
-          reallocRatio = std::min(std::max(reallocRatio,1.5f),8.f);
+          reallocRatio = (std::min)((std::max)(reallocRatio,1.5f),8.f);
         }
       }
       m_data.resize(m_data.size()+1,reallocRatio);
@@ -450,15 +453,15 @@ class SparseMatrix
     #ifndef EIGEN_PARSED_BY_DOXYGEN
     template<typename Lhs, typename Rhs>
     inline SparseMatrix& operator=(const SparseSparseProduct<Lhs,Rhs>& product)
-    {
-      return Base::operator=(product);
-    }
+    { return Base::operator=(product); }
     
     template<typename OtherDerived>
-    EIGEN_STRONG_INLINE SparseMatrix& operator=(const ReturnByValue<OtherDerived>& func)
-    {
-      return Base::operator=(func);
-    }
+    inline SparseMatrix& operator=(const ReturnByValue<OtherDerived>& other)
+    { return Base::operator=(other); }
+    
+    template<typename OtherDerived>
+    inline SparseMatrix& operator=(const EigenBase<OtherDerived>& other)
+    { return Base::operator=(other); }
     #endif
 
     template<typename OtherDerived>
@@ -600,6 +603,10 @@ class SparseMatrix
 
     /** \deprecated use finalize */
     EIGEN_DEPRECATED void endFill() { finalize(); }
+    
+#   ifdef EIGEN_SPARSEMATRIX_PLUGIN
+#     include EIGEN_SPARSEMATRIX_PLUGIN
+#   endif
 
 private:
   struct default_prunning_func {

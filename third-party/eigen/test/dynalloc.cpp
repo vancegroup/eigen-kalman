@@ -70,11 +70,10 @@ void check_aligned_stack_alloc()
 {
   for(int i = 1; i < 1000; i++)
   {
-    float *p = ei_aligned_stack_new(float,i);
+    ei_declare_aligned_stack_constructed_variable(float,p,i,0);
     VERIFY(size_t(p)%ALIGNMENT==0);
     // if the buffer is wrongly allocated this will give a bad write --> check with valgrind
     for(int j = 0; j < i; j++) p[j]=0;
-    ei_aligned_stack_delete(float,p,i);
   }
 }
 
@@ -120,11 +119,12 @@ void test_dynalloc()
   }
   
   // check static allocation, who knows ?
+  #if EIGEN_ALIGN_STATICALLY
   {
     MyStruct foo0;  VERIFY(size_t(foo0.avec.data())%ALIGNMENT==0);
     MyClassA fooA;  VERIFY(size_t(fooA.avec.data())%ALIGNMENT==0);
   }
-
+  
   // dynamic allocation, single object
   for (int i=0; i<g_repeat*100; ++i)
   {
@@ -143,5 +143,6 @@ void test_dynalloc()
     delete[] foo0;
     delete[] fooA;
   }
+  #endif
   
 }

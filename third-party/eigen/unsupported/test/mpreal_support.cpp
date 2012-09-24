@@ -1,5 +1,7 @@
 #include "main.h"
 #include <Eigen/MPRealSupport>
+#include <Eigen/LU>
+#include <Eigen/Eigenvalues>
 
 using namespace mpfr;
 using namespace std;
@@ -39,4 +41,7 @@ void test_mpreal_support()
   }
 }
 
-#include "mpreal.cpp"
+extern "C" {
+#include "mpreal/dlmalloc.c"
+}
+#include "mpreal/mpreal.cpp"

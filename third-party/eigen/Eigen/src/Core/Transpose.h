@@ -46,7 +46,7 @@ struct traits<Transpose<MatrixType> > : traits<MatrixType>
 {
   typedef typename MatrixType::Scalar Scalar;
   typedef typename nested<MatrixType>::type MatrixTypeNested;
-  typedef typename remove_reference<MatrixTypeNested>::type _MatrixTypeNested;
+  typedef typename remove_reference<MatrixTypeNested>::type MatrixTypeNestedPlain;
   typedef typename traits<MatrixType>::StorageKind StorageKind;
   typedef typename traits<MatrixType>::XprKind XprKind;
   enum {
@@ -54,8 +54,11 @@ struct traits<Transpose<MatrixType> > : traits<MatrixType>
     ColsAtCompileTime = MatrixType::RowsAtCompileTime,
     MaxRowsAtCompileTime = MatrixType::MaxColsAtCompileTime,
     MaxColsAtCompileTime = MatrixType::MaxRowsAtCompileTime,
-    Flags = int(_MatrixTypeNested::Flags & ~NestByRefBit) ^ RowMajorBit,
-    CoeffReadCost = _MatrixTypeNested::CoeffReadCost,
+    FlagsLvalueBit = is_lvalue<MatrixType>::value ? LvalueBit : 0,
+    Flags0 = MatrixTypeNestedPlain::Flags & ~(LvalueBit | NestByRefBit),
+    Flags1 = Flags0 | FlagsLvalueBit,
+    Flags = Flags1 ^ RowMajorBit,
+    CoeffReadCost = MatrixTypeNestedPlain::CoeffReadCost,
     InnerStrideAtCompileTime = inner_stride_at_compile_time<MatrixType>::ret,
     OuterStrideAtCompileTime = outer_stride_at_compile_time<MatrixType>::ret
   };
@@ -72,7 +75,7 @@ template<typename MatrixType> class Transpose
     typedef typename TransposeImpl<MatrixType,typename internal::traits<MatrixType>::StorageKind>::Base Base;
     EIGEN_GENERIC_PUBLIC_INTERFACE(Transpose)
 
-    inline Transpose(const MatrixType& matrix) : m_matrix(matrix) {}
+    inline Transpose(MatrixType& matrix) : m_matrix(matrix) {}
 
     EIGEN_INHERIT_ASSIGNMENT_OPERATORS(Transpose)
 
@@ -117,17 +120,36 @@ template<typename MatrixType> class TransposeImpl<MatrixType,Dense>
 
     inline Index innerStride() const { return derived().nestedExpression().innerStride(); }
     inline Index outerStride() const { return derived().nestedExpression().outerStride(); }
-    inline Scalar* data() { return derived().nestedExpression().data(); }
+
+    typedef typename internal::conditional<
+                       internal::is_lvalue<MatrixType>::value,
+                       Scalar,
+                       const Scalar
+                     >::type ScalarWithConstIfNotLvalue;
+
+    inline ScalarWithConstIfNotLvalue* data() { return derived().nestedExpression().data(); }
     inline const Scalar* data() const { return derived().nestedExpression().data(); }
 
-    inline Scalar& coeffRef(Index row, Index col)
+    inline ScalarWithConstIfNotLvalue& coeffRef(Index row, Index col)
     {
-      return const_cast_derived().nestedExpression().coeffRef(col, row);
+      EIGEN_STATIC_ASSERT_LVALUE(MatrixType)
+      return derived().nestedExpression().const_cast_derived().coeffRef(col, row);
     }
 
-    inline Scalar& coeffRef(Index index)
+    inline ScalarWithConstIfNotLvalue& coeffRef(Index index)
     {
-      return const_cast_derived().nestedExpression().coeffRef(index);
+      EIGEN_STATIC_ASSERT_LVALUE(MatrixType)
+      return derived().nestedExpression().const_cast_derived().coeffRef(index);
+    }
+
+    inline const Scalar& coeffRef(Index row, Index col) const
+    {
+      return derived().nestedExpression().coeffRef(col, row);
+    }
+
+    inline const Scalar& coeffRef(Index index) const
+    {
+      return derived().nestedExpression().coeffRef(index);
     }
 
     inline const CoeffReturnType coeff(Index row, Index col) const
@@ -149,7 +171,7 @@ template<typename MatrixType> class TransposeImpl<MatrixType,Dense>
     template<int LoadMode>
     inline void writePacket(Index row, Index col, const PacketScalar& x)
     {
-      const_cast_derived().nestedExpression().template writePacket<LoadMode>(col, row, x);
+      derived().nestedExpression().const_cast_derived().template writePacket<LoadMode>(col, row, x);
     }
 
     template<int LoadMode>
@@ -161,7 +183,7 @@ template<typename MatrixType> class TransposeImpl<MatrixType,Dense>
     template<int LoadMode>
     inline void writePacket(Index index, const PacketScalar& x)
     {
-      const_cast_derived().nestedExpression().template writePacket<LoadMode>(index, x);
+      derived().nestedExpression().const_cast_derived().template writePacket<LoadMode>(index, x);
     }
 };
 
@@ -197,10 +219,10 @@ DenseBase<Derived>::transpose()
   *
   * \sa transposeInPlace(), adjoint() */
 template<typename Derived>
-inline const Transpose<Derived>
+inline const typename DenseBase<Derived>::ConstTransposeReturnType
 DenseBase<Derived>::transpose() const
 {
-  return derived();
+  return ConstTransposeReturnType(derived());
 }
 
 /** \returns an expression of the adjoint (i.e. conjugate transpose) of *this.
@@ -226,7 +248,8 @@ template<typename Derived>
 inline const typename MatrixBase<Derived>::AdjointReturnType
 MatrixBase<Derived>::adjoint() const
 {
-  return this->transpose();
+  return this->transpose(); // in the complex case, the .conjugate() is be implicit here
+                            // due to implicit conversion to return type
 }
 
 /***************************************************************************
@@ -327,15 +350,14 @@ struct blas_traits<SelfCwiseBinaryOp<BinOp,NestedXpr,Rhs> >
 template<bool DestIsTransposed, typename OtherDerived>
 struct check_transpose_aliasing_compile_time_selector
 {
-  enum { ret = blas_traits<OtherDerived>::IsTransposed != DestIsTransposed
-  };
+  enum { ret = bool(blas_traits<OtherDerived>::IsTransposed) != DestIsTransposed };
 };
 
 template<bool DestIsTransposed, typename BinOp, typename DerivedA, typename DerivedB>
 struct check_transpose_aliasing_compile_time_selector<DestIsTransposed,CwiseBinaryOp<BinOp,DerivedA,DerivedB> >
 {
-  enum { ret =    blas_traits<DerivedA>::IsTransposed != DestIsTransposed
-               || blas_traits<DerivedB>::IsTransposed != DestIsTransposed
+  enum { ret =    bool(blas_traits<DerivedA>::IsTransposed) != DestIsTransposed
+               || bool(blas_traits<DerivedB>::IsTransposed) != DestIsTransposed
   };
 };
 
@@ -344,7 +366,7 @@ struct check_transpose_aliasing_run_time_selector
 {
   static bool run(const Scalar* dest, const OtherDerived& src)
   {
-    return (blas_traits<OtherDerived>::IsTransposed != DestIsTransposed) && (dest!=0 && dest==(Scalar*)extract_data(src));
+    return (bool(blas_traits<OtherDerived>::IsTransposed) != DestIsTransposed) && (dest!=0 && dest==(Scalar*)extract_data(src));
   }
 };
 

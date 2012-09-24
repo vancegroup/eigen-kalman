@@ -488,7 +488,7 @@ SHOW_FILES             = YES
 # Namespaces page.  This will remove the Namespaces entry from the Quick Index
 # and from the Folder Tree View (if specified). The default is YES.
 
-SHOW_NAMESPACES        = NO
+SHOW_NAMESPACES        = YES
 
 # The FILE_VERSION_FILTER tag can be used to specify a program or script that
 # doxygen should invoke to get the current version for each file (typically from
@@ -1213,7 +1213,8 @@ PREDEFINED             = EIGEN_EMPTY_STRUCT \
                          EIGEN_PARSED_BY_DOXYGEN \
                          EIGEN_VECTORIZE \
                          EIGEN_QT_SUPPORT \
-                         EIGEN_STRONG_INLINE=inline
+                         EIGEN_STRONG_INLINE=inline \
+                         EIGEN2_SUPPORT_STAGE=99
 
 # If the MACRO_EXPANSION and EXPAND_ONLY_PREDEF tags are set to YES then
 # this tag can be used to specify a list of macro names that should be expanded.
